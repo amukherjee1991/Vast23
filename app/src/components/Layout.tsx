@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { Flag, type FlagCode } from './Flag'
 
@@ -168,9 +168,33 @@ export function Question({
           </p>
         </div>
       </header>
-      <div className="q__answer prose">{answer}</div>
+      <Answer>{answer}</Answer>
       {children && <div className="q__evidence">{children}</div>}
     </section>
+  )
+}
+
+/** The answer column pins beside its evidence when it fits on screen,
+    so a claim stays in view while the reader works through its figures. */
+function Answer({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [pin, setPin] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const check = () => setPin(el.offsetHeight < window.innerHeight - 140)
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    window.addEventListener('resize', check)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', check)
+    }
+  }, [])
+  return (
+    <div ref={ref} className={`q__answer prose${pin ? ' q__answer--pin' : ''}`}>
+      {children}
+    </div>
   )
 }
 

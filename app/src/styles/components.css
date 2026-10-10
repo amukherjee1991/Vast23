@@ -357,6 +357,10 @@
   .q__answer {
     grid-column: 1;
   }
+  .q__answer--pin {
+    position: sticky;
+    top: 104px;
+  }
   .q__evidence {
     grid-column: 2;
   }
