@@ -232,12 +232,22 @@ export function useMC1(): Loadable<MC1> {
   }, [suspects, lowconf, egos, paths, cands, meta])
 }
 
-/** Edge-type colours, fixed across the page. */
+/** Edge-type colours, fixed across the page. Family is signal-black ink, so it
+    carries its own dash (dots) to stay apart from the coloured types. */
 export const EDGE_COLOR: Record<string, string> = {
   ownership: 'var(--series-3)',
   partnership: 'var(--series-1)',
   membership: 'var(--series-2)',
-  family_relationship: 'var(--series-4)',
+  family_relationship: 'var(--ink)',
+}
+/** Dash per edge type and weight. Weak (< 0.8) edges are dashed; family is
+    dotted when strong and dash-dot when weak, so weight still reads on it. */
+export const WEAK_DASH = '4 3'
+export const FAMILY_DASH = '1 2.5'
+export const FAMILY_WEAK_DASH = '5 2.5 1 2.5'
+export function edgeDash(type: string | null | undefined, weak: boolean): string | undefined {
+  if (type === 'family_relationship') return weak ? FAMILY_WEAK_DASH : FAMILY_DASH
+  return weak ? WEAK_DASH : undefined
 }
 export const EDGE_LABEL: Record<string, string> = {
   ownership: 'Ownership',
@@ -247,7 +257,8 @@ export const EDGE_LABEL: Record<string, string> = {
 }
 export const edgeColor = (t: string | null | undefined) => EDGE_COLOR[t ?? ''] ?? 'var(--rule-strong)'
 
-/** Suspects in reading order, each with a fixed identity colour. */
+/** Suspects in reading order, each with a fixed identity colour. Oceanfront
+    Oasis takes signal black: a fill (always ink-outlined), never a line. */
 export const SUSPECT_ORDER = ['#8327', '#979893388', 'Mar de la Vida OJSC', 'Oceanfront Oasis Inc Carriers'] as const
 export const SUSPECT_COLOR: Record<string, string> = {
   '#8327': 'var(--series-1)',

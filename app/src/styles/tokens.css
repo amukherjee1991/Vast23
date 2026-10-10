@@ -27,8 +27,10 @@
   --series-1: #1747c4;  /* blue   */
   --series-2: #e3a008;  /* yellow (outline it) */
   --series-3: #d42a2a;  /* red    */
-  --series-4: #0e8a6e;  /* sea green */
-  --series-5: #6b4fd8;  /* violet */
+  --series-4: #111318;  /* signal black — lines solid, fills outlined */
+  --series-5: #ffffff;  /* signal white — fills only, always ink-outlined */
+  --dash-4: none;
+  --dash-5: 4 3;        /* slot 5 drawn as a line = ink, dashed */
   --series-other: #9a9d96;
 
   /* Sequential (blue, light → dark) */

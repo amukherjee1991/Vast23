@@ -391,7 +391,7 @@ export function ChainStrip({ hops, edges, focusEdge }: { hops: ChainHop[]; edges
               <span className="chain__edge" data-focus={focusEdge === i} data-weak={e.w < 0.8}>
                 <span
                   className="chain__line"
-                  style={{ borderColor: EDGE_COLOR[e.type], borderStyle: e.w < 0.8 ? 'dashed' : 'solid' }}
+                  style={{ borderColor: EDGE_COLOR[e.type], borderStyle: e.type === 'family_relationship' ? 'dotted' : e.w < 0.8 ? 'dashed' : 'solid' }}
                   aria-hidden
                 />
                 <span className="chain__w tnum">
@@ -499,7 +499,7 @@ export const FEATURE_GROUPS: { id: string; label: string; color: string; members
   { id: 'low_conf', label: 'Low-weight edges', color: 'var(--series-1)', members: ['low_conf'] },
   { id: 'proximity', label: 'Near suspects', color: 'var(--series-2)', members: ['proximity'] },
   { id: 'ownership', label: 'Ownership ties', color: 'var(--series-3)', members: ['ownership'] },
-  { id: 'shared_nbrs', label: 'Shared neighbours', color: 'var(--series-4)', members: ['shared_nbrs'] },
+  { id: 'shared_nbrs', label: 'Shared neighbours', color: 'var(--ink)', members: ['shared_nbrs'] },
   { id: 'rest', label: 'Profile, repeats, FishEye tag', color: 'var(--series-other)', members: ['profile_sim', 'redundancy', 'fisheye_flag'] },
 ]
 export function ContribBar({ contrib, width, height = 14 }: { contrib: Record<Feature, number>; width: number; height?: number }) {
@@ -688,11 +688,13 @@ export function Swatch({ color, children }: { color: string; children: ReactNode
     </span>
   )
 }
-export function LineSwatch({ color, dashed, children }: { color: string; dashed?: boolean; children: ReactNode }) {
+export function LineSwatch({ color, dashed, dash, children }: { color: string; dashed?: boolean; dash?: string; children: ReactNode }) {
+  const da = dash ?? (dashed ? '4 3' : undefined)
+  const dotted = !!da && parseFloat(da) <= 1.5
   return (
     <span className="legend-item">
       <svg width={22} height={10} aria-hidden>
-        <line x1={1} x2={21} y1={5} y2={5} stroke={color} strokeWidth={2.5} strokeDasharray={dashed ? '4 3' : undefined} />
+        <line x1={2} x2={21} y1={5} y2={5} stroke={color} strokeWidth={2.5} strokeDasharray={da} strokeLinecap={dotted ? 'round' : undefined} />
       </svg>
       {children}
     </span>

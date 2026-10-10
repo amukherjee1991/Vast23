@@ -128,7 +128,8 @@ export function Q1() {
                 controls={stepChips}
                 legend={
                   <>
-                    <LegendItem color="var(--series-1)" label="Largest left after removing common-surname people" />
+                    <LegendItem color="var(--ink-3)" label="Giant component as found" />
+                    <LegendItem color="var(--seq-500)" label="Largest left after removing common-surname people" />
                     <span className="legend-item">
                       <svg width={14} height={14} aria-hidden>
                         <circle cx={7} cy={7} r={4} fill="var(--cloth)" stroke="var(--ink)" strokeWidth={1.25} />

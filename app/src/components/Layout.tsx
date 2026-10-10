@@ -108,13 +108,16 @@ export function SiteFooter() {
   )
 }
 
-/** Opening band of a mini-challenge page: a full field of its pennant colour. */
+/** Opening band of a mini-challenge page: a full field of its pennant colour.
+    `aside` (e.g. the verdict hoist) takes the right column on wide screens and
+    stacks under the lede on narrow ones; without it the band is one column. */
 export function ChallengeBand({
   pennant,
   mc,
   title,
   lede,
   tone,
+  aside,
   children,
 }: {
   pennant: 'P1' | 'P2' | 'P3'
@@ -122,17 +125,35 @@ export function ChallengeBand({
   title: string
   lede: ReactNode
   tone: 'red' | 'blue' | 'yellow'
+  aside?: ReactNode
   children?: ReactNode
 }) {
+  const head = (
+    <>
+      <div className="band__mark">
+        <Flag code={pennant} size={64} label={mc} />
+      </div>
+      <h1 className="band__title">{title}</h1>
+      <p className="band__lede">{lede}</p>
+    </>
+  )
+  if (!aside)
+    return (
+      <section className={`band band--${tone}`}>
+        <div className="band__inner">
+          {head}
+          {children}
+        </div>
+      </section>
+    )
   return (
     <section className={`band band--${tone}`}>
-      <div className="band__inner">
-        <div className="band__mark">
-          <Flag code={pennant} size={64} label={mc} />
+      <div className="band__inner band__inner--split">
+        <div className="band__main">
+          {head}
+          {children}
         </div>
-        <h1 className="band__title">{title}</h1>
-        <p className="band__lede">{lede}</p>
-        {children}
+        <div className="band__aside">{aside}</div>
       </div>
     </section>
   )

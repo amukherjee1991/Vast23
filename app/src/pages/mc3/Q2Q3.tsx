@@ -15,7 +15,8 @@ const SPACE_KEY: Record<Space, 'text' | 'structure'> = { T: 'text', S: 'structur
 
 /* Colour follows the cluster, never its rank: each space has a fixed lens of
    four clusters on series 1–4; a selected cluster outside the lens takes
-   series 5; everything else folds into Other. */
+   series 5 (signal white, drawn with an ink outline so it reads as a hollow
+   ring beside the solid black of slot 4); everything else folds into Other. */
 const LENS: Record<Space, string[]> = {
   T: ['T09', 'T12', 'T16', 'T20'],
   S: ['S09', 'S12', 'S07', 'S10'],
@@ -26,6 +27,8 @@ function clusterColor(space: Space, id: string, selected: string | null) {
   if (id === selected) return SERIES[4]
   return 'var(--series-other)'
 }
+/** A selected cluster outside the lens: the one drawn in signal white. */
+const isPicked = (space: Space, id: string, selected: string | null) => id === selected && !LENS[space].includes(id)
 const shortName = (c: Cluster) =>
   c.top_terms.length ? c.top_terms.slice(0, 3).join(' · ') : (c.label.match(/\((.*)\)/)?.[1] ?? c.label).replaceAll('_', ' ')
 
@@ -87,8 +90,9 @@ function EmbedMap({
             x: r.x,
             y: r.y,
             color: clusterColor(space, r.cluster, selected),
-            alpha: (marginMode ? Math.max(0.08, Math.min(1, r.margin / 0.45)) : base) * (inFocus ? 1 : 0.35),
-            r: lensed ? 2.8 : 2.2,
+            stroke: isPicked(space, r.cluster, selected) ? 'var(--ink)' : undefined,
+            alpha: isPicked(space, r.cluster, selected) ? 1 : (marginMode ? Math.max(0.08, Math.min(1, r.margin / 0.45)) : base) * (inFocus ? 1 : 0.35),
+            r: isPicked(space, r.cluster, selected) ? 3.2 : lensed ? 2.8 : 2.2,
             tip: (
               <>
                 <strong>{r.name}</strong>

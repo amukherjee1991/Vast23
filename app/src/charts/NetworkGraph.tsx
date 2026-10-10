@@ -34,6 +34,7 @@ export function NetworkGraph({
   links,
   height = 520,
   linkColor,
+  linkDash,
   dashedTypes,
   onSelect,
   selected,
@@ -44,6 +45,8 @@ export function NetworkGraph({
   links: GLink[]
   height?: number
   linkColor?: (type: string | null | undefined) => string
+  /** Dash pattern per link type and weakness; overrides the default weak dash. */
+  linkDash?: (type: string | null | undefined, weak: boolean) => string | undefined
   dashedTypes?: string[]
   onSelect?: (id: string) => void
   selected?: string | null
@@ -126,6 +129,17 @@ export function NetworkGraph({
   const isOn = (id: string) => (onPath ? onPath.has(id) : !near || id === focus || near.has(id))
   const lc = linkColor ?? (() => 'var(--rule-strong)')
 
+  // Which nodes want a label right now, and how badly.
+  const wanted = layout.sn.filter(
+    (n) => n.emph || showAllLabels || n.id === focus || (onPath && onPath.has(n.id)) || (near && near.has(n.id) && (near.size ?? 0) <= 16),
+  )
+  const wantedKey = wanted.map((n) => n.id).join('\u0000') + `|${focus ?? ''}|${width}|${height}`
+  const labels = useMemo(
+    () => placeLabels(wanted, layout.sn, (n) => n.emph || n.id === focus, (n) => (onPath && onPath.has(n.id) ? 2 : 1), cx, cy, px, py),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [wantedKey, layout],
+  )
+
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <svg
@@ -144,7 +158,9 @@ export function NetworkGraph({
               const t = l.target as SimNode
               const inPath = !!onPath && pathEdges.has(`${s.id}\u0000${t.id}`)
               const on = onPath ? inPath : !near || s.id === focus || t.id === focus
-              const dashed = l.dashed || dashedTypes?.includes(l.type ?? '')
+              const dashed = !!l.dashed || !!dashedTypes?.includes(l.type ?? '')
+              const da = linkDash ? linkDash(l.type, dashed) : dashed ? (inPath ? '6 4' : '3 3') : undefined
+              const dotted = !!da && parseFloat(da) <= 1.5
               return (
                 <line
                   key={i}
@@ -153,9 +169,10 @@ export function NetworkGraph({
                   x2={px(t.x!)}
                   y2={py(t.y!)}
                   stroke={on && near ? 'var(--ink)' : lc(l.type)}
-                  strokeWidth={inPath ? 3 : on && near ? 1.5 : l.dashed ? 1.5 : 1}
+                  strokeWidth={inPath ? 3 : on && near ? 1.5 : l.dashed || dotted ? 1.5 : 1}
                   strokeOpacity={on ? 0.9 : 0.12}
-                  strokeDasharray={dashed ? (inPath ? '6 4' : '3 3') : undefined}
+                  strokeDasharray={da}
+                  strokeLinecap={dotted ? 'round' : undefined}
                 />
               )
             })}
@@ -164,7 +181,7 @@ export function NetworkGraph({
             const st = entityStyle(n.type)
             const r = n.size ?? (n.emph ? 9 : 5)
             const on = isOn(n.id)
-            const showLabel = n.emph || showAllLabels || n.id === focus || (onPath && onPath.has(n.id)) || (near && near.has(n.id) && (near.size ?? 0) <= 16)
+            const lab = labels.get(n.id)
             return (
               <g
                 key={n.id}
@@ -179,9 +196,16 @@ export function NetworkGraph({
                 <circle r={r + 6} fill="transparent" />
                 {n.ring && <path d={shapePath(st.shape, r + 4)} fill="none" stroke={n.ring} strokeWidth={3} />}
                 <path d={shapePath(st.shape, r)} fill={st.color} stroke="var(--ink)" strokeWidth={n.emph ? 1.5 : 0.75} />
-                {showLabel && (
-                  <text x={r + 6} dy="0.32em" className="label-strong" style={{ paintOrder: 'stroke', stroke: 'var(--cloth)', strokeWidth: 3 }}>
-                    {(n.label ?? n.id).length > 28 ? (n.label ?? n.id).slice(0, 27) + '…' : n.label ?? n.id}
+                {lab && (
+                  <text
+                    x={lab.dx}
+                    y={lab.dy}
+                    dy="0.32em"
+                    textAnchor={lab.anchor}
+                    className="label-strong net-label"
+                    style={{ paintOrder: 'stroke', stroke: 'var(--cloth)', strokeWidth: 4, strokeLinejoin: 'round', pointerEvents: 'none' }}
+                  >
+                    {lab.text}
                   </text>
                 )}
               </g>
@@ -191,6 +215,95 @@ export function NetworkGraph({
       </svg>
     </div>
   )
+}
+
+/* ───────── label placement ───────── */
+
+const CHAR_W = 6.6 // px per character at 12px, semibold
+const LABEL_H = 15
+type Anchor = 'start' | 'middle' | 'end'
+interface Placed {
+  dx: number
+  dy: number
+  anchor: Anchor
+  text: string
+}
+interface Box {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+const overlap = (a: Box, b: Box) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0))
+const nodeR = (n: SimNode) => n.size ?? (n.emph ? 9 : 5)
+const labelText = (n: SimNode) => {
+  const t = n.label ?? n.id
+  return t.length > 28 ? t.slice(0, 27) + '…' : t
+}
+
+/** Place each wanted label away from the graph centre (radially), trying the
+    other sides when that spot is taken. Priority labels (emphasised, focus)
+    never yield: they take the least-crowded spot. The rest are dropped when
+    every candidate spot collides with a label already placed. */
+function placeLabels(
+  wanted: SimNode[],
+  all: SimNode[],
+  keep: (n: SimNode) => boolean,
+  rank: (n: SimNode) => number,
+  cx: number,
+  cy: number,
+  px: (x: number) => number,
+  py: (y: number) => number,
+) {
+  const out = new Map<string, Placed>()
+  const placed: Box[] = []
+  // Node marks are obstacles too, so a label does not sit on a neighbour.
+  const marks: Box[] = all.map((n) => {
+    const r = nodeR(n) + 2
+    return { x0: px(n.x!) - r, y0: py(n.y!) - r, x1: px(n.x!) + r, y1: py(n.y!) + r }
+  })
+  const order = [...wanted].sort((a, b) => Number(keep(b)) - Number(keep(a)) || rank(b) - rank(a) || nodeR(b) - nodeR(a))
+  for (const n of order) {
+    const text = labelText(n)
+    const w = text.length * CHAR_W
+    const r = nodeR(n) + 5
+    const x = px(n.x!)
+    const y = py(n.y!)
+    const ang = Math.atan2(n.y! - cy, n.x! - cx)
+    const c = Math.cos(ang)
+    const radial: Placed = Math.abs(c) >= 0.4 || (n.x! === cx && n.y! === cy)
+      ? { dx: c >= 0 ? r : -r, dy: Math.sin(ang) * r * 0.6, anchor: c >= 0 ? 'start' : 'end', text }
+      : { dx: 0, dy: Math.sin(ang) > 0 ? r + 6 : -r - 6, anchor: 'middle', text }
+    const cands: Placed[] = [
+      radial,
+      { dx: r, dy: 0, anchor: 'start', text },
+      { dx: -r, dy: 0, anchor: 'end', text },
+      { dx: 0, dy: -r - 6, anchor: 'middle', text },
+      { dx: 0, dy: r + 6, anchor: 'middle', text },
+      { dx: r - 2, dy: -r, anchor: 'start', text },
+      { dx: r - 2, dy: r, anchor: 'start', text },
+      { dx: -r + 2, dy: -r, anchor: 'end', text },
+      { dx: -r + 2, dy: r, anchor: 'end', text },
+    ]
+    const boxOf = (p: Placed): Box => {
+      const x0 = x + p.dx - (p.anchor === 'start' ? 0 : p.anchor === 'middle' ? w / 2 : w)
+      const y0 = y + p.dy - LABEL_H / 2
+      return { x0, y0, x1: x0 + w, y1: y0 + LABEL_H }
+    }
+    let best: { p: Placed; b: Box; hit: number; score: number } | null = null
+    for (const p of cands) {
+      const b = boxOf(p)
+      const hit = placed.reduce((s, q) => s + overlap(b, q), 0)
+      const score = hit * 4 + marks.reduce((s, q) => s + overlap(b, q), 0)
+      if (!best || score < best.score) best = { p, b, hit, score }
+      if (score === 0) break
+    }
+    if (!best) continue
+    if (best.hit > 0 && !keep(n)) continue
+    out.set(n.id, best.p)
+    placed.push(best.b)
+  }
+  return out
 }
 
 /** Legend of entity shapes, shared by every node-link view. */

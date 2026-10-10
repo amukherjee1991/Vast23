@@ -5,52 +5,6 @@
   max-width: 22ch;
 }
 
-/* ───────── Lead strip in the yellow band (text on yellow stays ink) ───────── */
-.mc3-leads {
-  list-style: none;
-  padding: 0;
-  margin-bottom: 0;
-}
-.mc3-leads > li {
-  padding: 0;
-}
-.mc3-lead {
-  display: grid;
-  gap: var(--s-3);
-  align-content: start;
-  width: 100%;
-  height: 100%;
-  padding: var(--s-5);
-  text-align: left;
-  background: var(--cloth);
-  color: var(--ink);
-  border: 0;
-  cursor: pointer;
-  transition: background-color var(--t-ui) var(--ease-out);
-}
-.mc3-lead:active {
-  background: var(--ground);
-}
-.mc3-lead__name {
-  display: block;
-  font-weight: 600;
-  font-size: var(--fs-small);
-  color: var(--ink-2);
-  font-variation-settings: "wdth" var(--w-text);
-}
-.mc3-lead__go {
-  font-size: var(--fs-small);
-  font-weight: 700;
-  text-decoration: underline;
-  text-decoration-thickness: var(--line);
-  text-underline-offset: 0.18em;
-}
-@media (hover: hover) and (pointer: fine) {
-  .mc3-lead:hover {
-    background: var(--ground);
-  }
-}
-
 /* ───────── Canvas scatter ───────── */
 .cplot {
   position: relative;

@@ -27,6 +27,8 @@ const FALLBACK: HoistEntry[] = [
   { name: '8327', mc: 'MC1', verdict: 'Insufficient evidence', confidence: 'Low', note: 'Tip received', href: '/mc1' },
 ]
 
+const PENNANT: Record<string, 'P1' | 'P2' | 'P3'> = { MC1: 'P1', MC2: 'P2', MC3: 'P3' }
+
 const CHALLENGES = [
   {
     to: '/mc1',
@@ -68,19 +70,21 @@ export default function Home() {
             Three knowledge graphs from the IEEE VAST Challenge 2023 cover news, customs records, and corporate filings from the fictional
             nation of Oceanus. Each verdict on this page is hoisted as a maritime signal flag, next to the interactive evidence that supports it.
           </p>
-          <div className="hero__actions">
-            <Link to="/mc1" className="btn btn--primary">
-              Start with the tips
-              <Flag code="P1" size={20} decorative />
-            </Link>
-            <Link to="/method" className="btn">
-              How it was built
-            </Link>
-          </div>
+          <nav className="hero__paths" aria-label="Start with a mini-challenge">
+            {CHALLENGES.map((c) => (
+              <Link key={c.mc} to={c.to} className="hero__path">
+                <Flag code={c.pennant} size={56} decorative />
+                <span className="hero__path-mc">{c.mc}</span>
+                <span className="hero__path-t">{c.title}</span>
+              </Link>
+            ))}
+          </nav>
+          <Link to="/method" className="hero__method">
+            How the evidence was made
+          </Link>
         </div>
 
         <figure className="mast" aria-label="Verdict hoist: one flag per investigated entity">
-          <span className="mast__pole" aria-hidden />
           <ol className="mast__flags">
             {hoist.map((h, i) => {
               const v: Verdict = toVerdict(h.verdict)
@@ -88,13 +92,17 @@ export default function Home() {
               return (
                 <li key={h.name} style={{ ['--i' as string]: i }}>
                   <Link to={h.href} className="mast__flag">
-                    <Flag code={VERDICT_FLAG[v]} size={84} decorative />
+                    <span className="mast__cloth" aria-hidden>
+                      <Flag code={PENNANT[h.mc] ?? 'P1'} size={34} decorative />
+                      <Flag code={VERDICT_FLAG[v]} size={76} decorative />
+                    </span>
                     <span className="mast__tag">
                       <span className="mast__name">{h.name}</span>
                       <span className="mast__verdict">
-                        {v} · {h.mc}
+                        {h.mc} · {v}, {c.toLowerCase()} confidence
                       </span>
-                      <ConfidencePennants level={c} size={12} />
+                      <ConfidencePennants level={c} size={20} />
+                      <span className="mast__note">{h.note}</span>
                     </span>
                   </Link>
                 </li>
@@ -103,7 +111,7 @@ export default function Home() {
           </ol>
           <figcaption className="mast__cap">
             {summary.status === 'ready'
-              ? 'The strongest finding from each challenge. Select a flag to see the evidence.'
+              ? 'The strongest finding from each challenge, hoisted. Select one to see its evidence.'
               : 'Tips as received, before analysis.'}
           </figcaption>
         </figure>
@@ -122,9 +130,9 @@ export default function Home() {
                 <p className="route__body">{head ?? c.body}</p>
                 <p className="route__data tnum">{c.data}</p>
               </div>
-              <span className="route__go" aria-hidden>
-                →
-              </span>
+              <svg className="route__go" width="40" height="24" viewBox="0 0 40 24" aria-hidden>
+                <path d="M0 12H37M27 2l10 10-10 10" fill="none" stroke="currentColor" strokeWidth="2" />
+              </svg>
             </Link>
           )
         })}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ChallengeBand, ChallengePage, type HalyardStop } from '../components/Layout'
-import { VerdictTag } from '../components/Signals'
+import { HeroHoist } from '../components/HeroHoist'
 import { useJson } from '../lib/useJson'
 import { toConfidence, toVerdict } from '../lib/signals'
 import { Q1 } from './mc3/Q1'
@@ -46,32 +46,31 @@ export default function MC3() {
             Smith hold it together. Remove them and what stays anomalous is small: fishing-named firms that share owners across borders.
           </>
         }
-      >
-        <ul className="summary-strip mc3-leads" aria-label="Groups to investigate first">
-          {LEADS.map((l) => {
-            const g = live?.get(l.id)
-            return (
-              <li key={l.id}>
-                <button
-                  type="button"
-                  className="mc3-lead"
-                  onClick={() => {
-                    setInvSel(l.id)
-                    reveal('mc3-investigate')
-                  }}
-                >
-                  <span className="summary-strip__name">
-                    {l.id} <span className="mc3-lead__name">{l.name}</span>
-                  </span>
-                  <VerdictTag verdict={toVerdict(g?.verdict ?? l.verdict)} confidence={toConfidence(g?.confidence ?? l.confidence)} size={30} />
-                  <span className="summary-strip__note">{l.note}</span>
-                  <span className="mc3-lead__go">Open the evidence</span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      </ChallengeBand>
+        aside={
+          <HeroHoist
+            label="Groups to investigate first"
+            onSelect={(id) => {
+              setInvSel(id)
+              reveal('mc3-investigate')
+            }}
+            items={LEADS.map((l) => {
+              const g = live?.get(l.id)
+              return {
+                key: l.id,
+                name: (
+                  <>
+                    {l.name} <span className="hoist__id">{l.id}</span>
+                  </>
+                ),
+                verdict: toVerdict(g?.verdict ?? l.verdict),
+                confidence: toConfidence(g?.confidence ?? l.confidence),
+                reason: l.note,
+                action: 'open the evidence',
+              }
+            })}
+          />
+        }
+      />
       <ChallengePage stops={STOPS}>
         <Q1 />
         <Q2 />

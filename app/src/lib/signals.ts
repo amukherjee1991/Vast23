@@ -46,7 +46,7 @@ export const SERIES = [
   'var(--series-4)',
   'var(--series-5)',
 ] as const
-export const SERIES_HEX = ['#1747c4', '#e3a008', '#d42a2a', '#0e8a6e', '#6b4fd8'] as const
+export const SERIES_HEX = ['#1747c4', '#e3a008', '#d42a2a', '#111318', '#ffffff'] as const
 export const OTHER = 'var(--series-other)'
 
 /** Entity-type encoding shared by every node-link view: color + shape, never color alone. */

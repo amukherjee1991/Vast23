@@ -2,7 +2,7 @@ import * as d3 from 'd3'
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ChallengeBand, ChallengePage, Question, type HalyardStop } from '../components/Layout'
 import { Await, Figure } from '../components/Figure'
-import { VerdictTag } from '../components/Signals'
+import { HeroHoist } from '../components/HeroHoist'
 import { Flag } from '../components/Flag'
 import { BarList, EntityLegend, NetworkGraph, type GLink, type GNode } from '../charts'
 import { useWidth } from '../charts/useSize'
@@ -15,7 +15,10 @@ import {
   SUSPECT_COLOR,
   SUSPECT_ORDER,
   between,
+  FAMILY_WEAK_DASH,
+  WEAK_DASH,
   edgeColor,
+  edgeDash,
   label,
   useMC1,
   type MC1,
@@ -130,17 +133,24 @@ function gnode(d: MC1, k: string, extra?: Partial<GNode>): GNode {
   }
 }
 
-function EdgeLegend({ weak = true }: { weak?: boolean }) {
+/** Edge-type key. `weak` adds the weight key; `allWeak` draws every type in
+    its weak dash, for figures where every edge weighs under 0.8. */
+function EdgeLegend({ weak = true, allWeak = false, familyWeak = weak }: { weak?: boolean; allWeak?: boolean; familyWeak?: boolean }) {
   return (
     <>
       {Object.keys(EDGE_COLOR).map((t) => (
-        <LineSwatch key={t} color={EDGE_COLOR[t]}>
+        <LineSwatch key={t} color={EDGE_COLOR[t]} dash={edgeDash(t, allWeak)}>
           {EDGE_LABEL[t]}
         </LineSwatch>
       ))}
       {weak && (
-        <LineSwatch color="var(--ink-3)" dashed>
+        <LineSwatch color="var(--ink-3)" dash={WEAK_DASH}>
           Weight below 0.8
+        </LineSwatch>
+      )}
+      {familyWeak && (
+        <LineSwatch color="var(--ink)" dash={FAMILY_WEAK_DASH}>
+          Family below 0.8
         </LineSwatch>
       )}
     </>
@@ -176,11 +186,12 @@ export default function MC1() {
               it ownership. Three of the four suspects sit inside it and the fourth is one hop away.
             </>
           }
-        >
-          <Await state={state} height={180}>
-            {(d) => <SummaryStrip d={d} onOpen={openSuspect} />}
-          </Await>
-        </ChallengeBand>
+          aside={
+            <Await state={state} height={320}>
+              {(d) => <SuspectHoist d={d} onOpen={openSuspect} />}
+            </Await>
+          }
+        />
       </div>
       <ChallengePage stops={STOPS}>
         <Q1 state={state} suspect={egoSuspect} setSuspect={setEgoSuspect} claim={q1Claim} setClaim={setQ1Claim} />
@@ -192,25 +203,23 @@ export default function MC1() {
   )
 }
 
-function SummaryStrip({ d, onOpen }: { d: MC1; onOpen: (k: string) => void }) {
+function SuspectHoist({ d, onOpen }: { d: MC1; onOpen: (k: string) => void }) {
   return (
-    <ul className="summary-strip mc1-strip" aria-label="Verdicts on the four suspects">
-      {SUSPECT_ORDER.map((k) => {
+    <HeroHoist
+      label="Verdicts on the four suspects"
+      onSelect={onOpen}
+      items={SUSPECT_ORDER.map((k) => {
         const s = suspectVerdict(d, k)!
-        return (
-          <li key={k}>
-            <button type="button" className="mc1-strip__btn" onClick={() => onOpen(k)}>
-              <VerdictTag verdict={toVerdict(s.verdict)} confidence={toConfidence(s.confidence)} size={34} />
-              <span className="summary-strip__name">{label(d, k)}</span>
-              <span className="summary-strip__note">{REASON[k]}</span>
-              <span className="mc1-strip__go">
-                {s.rubric.points} rubric points · see its network
-              </span>
-            </button>
-          </li>
-        )
+        return {
+          key: k,
+          name: label(d, k),
+          verdict: toVerdict(s.verdict),
+          confidence: toConfidence(s.confidence),
+          reason: REASON[k],
+          action: `${s.rubric.points} rubric points, open its network`,
+        }
       })}
-    </ul>
+    />
   )
 }
 
@@ -451,7 +460,7 @@ function EgoFigure({
           .map((m) => [label(d, m.k), m.d, d.node.get(m.k)?.type ?? null, d.node.get(m.k)?.cls ?? null, m.role]),
       }}
     >
-      <NetworkGraph nodes={nodes} links={links} height={nodes.length <= 40 ? (narrow ? 340 : 400) : narrow ? 440 : 580} linkColor={edgeColor} path={path} />
+      <NetworkGraph nodes={nodes} links={links} height={nodes.length <= 40 ? (narrow ? 340 : 400) : narrow ? 440 : 580} linkColor={edgeColor} linkDash={edgeDash} path={path} />
     </Figure>
   )
 }
@@ -472,7 +481,7 @@ function LayerFigure({ d, path, selected }: { d: MC1; path: string[] | null; sel
       legend={
         <>
           <EntityLegend types={['company', 'organization', 'person', 'other']} />
-          <EdgeLegend weak={false} />
+          <EdgeLegend weak={false} allWeak />
         </>
       }
       caption={
@@ -485,7 +494,7 @@ function LayerFigure({ d, path, selected }: { d: MC1; path: string[] | null; sel
         rows: [...lc.links].sort((a, b) => a.w - b.w).map((l) => [label(d, l.s), label(d, l.t), EDGE_LABEL[l.type], l.w]),
       }}
     >
-      <NetworkGraph nodes={nodes} links={links} height={narrow ? 380 : 460} linkColor={edgeColor} path={path} selected={selected} />
+      <NetworkGraph nodes={nodes} links={links} height={narrow ? 380 : 460} linkColor={edgeColor} linkDash={edgeDash} path={path} selected={selected} />
     </Figure>
   )
 }
@@ -744,7 +753,7 @@ function ChainFigure({
           </button>
         </div>
       }
-      legend={<EdgeLegend />}
+      legend={<EdgeLegend familyWeak={false} />}
       caption={
         <>
           Source: <code>suspects.json</code> → <code>ownership_chains.to_suspects</code>; edge weights from <code>egos.json</code> and <code>candidates.json</code>. Where a pair
@@ -1009,7 +1018,7 @@ function EvidenceFigure({ d, k, showPath, setShowPath }: { d: MC1; k: string; sh
           </span>
         ))}
       </div>
-      <NetworkGraph nodes={nodes} links={links} height={380} linkColor={edgeColor} path={showPath ? c.evidence.path_to_suspect : null} />
+      <NetworkGraph nodes={nodes} links={links} height={380} linkColor={edgeColor} linkDash={edgeDash} path={showPath ? c.evidence.path_to_suspect : null} />
     </Figure>
   )
 }

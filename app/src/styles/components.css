@@ -162,6 +162,162 @@
     font-size: 1.0625rem;
   }
 }
+/* Two-column band: headline left, the verdict hoist in the right column. */
+.band__main {
+  display: grid;
+  gap: var(--s-5);
+  min-width: 0;
+}
+.band__aside {
+  min-width: 0;
+  margin-top: var(--s-4);
+}
+@media (min-width: 1100px) {
+  .band__inner--split {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+    column-gap: var(--s-8);
+    align-items: start;
+  }
+  .band__aside {
+    margin-top: 0;
+    padding-top: var(--s-2);
+  }
+}
+
+/* ───────── Verdict hoist (flags on a vertical halyard) ─────────
+   The rope and text take the band's own foreground: cloth white on red and
+   blue, ink on yellow. Flags keep their ink outline on every field. */
+.hoist {
+  position: relative;
+  padding: var(--s-5) 0 var(--s-1);
+}
+.hoist__rope {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-left: var(--line) solid currentColor;
+}
+.hoist__rope::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: calc(-4px - var(--line) / 2);
+  width: 8px;
+  height: 8px;
+  border: var(--line) solid currentColor;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.hoist__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s-6);
+}
+.hoist__pos {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  column-gap: var(--s-4);
+  align-items: start;
+  animation: hoist var(--t-hoist) var(--ease-hoist) both;
+  animation-delay: calc(var(--i) * 70ms + 160ms);
+}
+.hoist__flag {
+  display: block;
+  margin-left: -0.5px;
+  padding-top: 3px;
+  transition: transform var(--t-ui) var(--ease-out);
+}
+.hoist__body {
+  min-width: 0;
+}
+.hoist__name {
+  margin: 0;
+  font-size: 1.1875rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+  font-variation-settings: "wdth" var(--w-data);
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+.hoist__btn {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.18em;
+  transition: text-decoration-color var(--t-ui) var(--ease-out);
+}
+/* The whole position is the hit area. */
+.hoist__btn::after {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--s-2)) calc(-1 * var(--s-2)) calc(-1 * var(--s-2)) var(--s-2);
+}
+.hoist__btn:focus-visible {
+  outline: none;
+}
+.hoist__pos:has(.hoist__btn:focus-visible) {
+  outline: 2px solid currentColor;
+  outline-offset: var(--s-2);
+  border-radius: var(--radius);
+}
+.hoist__pos:active .hoist__flag {
+  transform: translateY(2px);
+}
+@media (hover: hover) and (pointer: fine) {
+  .hoist__pos:hover .hoist__btn {
+    text-decoration-color: currentColor;
+  }
+  .hoist__pos:hover .hoist__flag {
+    transform: translateY(-3px);
+  }
+}
+.hoist__verdict {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: var(--fs-small);
+  font-weight: 700;
+}
+.hoist__pennants {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.hoist__reason {
+  margin-top: 6px;
+  font-size: var(--fs-small);
+  line-height: 1.45;
+  max-width: 46ch;
+}
+.band--red .hoist__reason,
+.band--blue .hoist__reason {
+  color: rgb(255 255 255 / 0.9);
+}
+.band--yellow .hoist__reason {
+  color: var(--ink-2);
+}
+.hoist__arrow {
+  font-weight: 500;
+}
+.hoist__id {
+  font-size: var(--fs-small);
+  font-weight: 650;
+  white-space: nowrap;
+}
 
 /* ───────── Challenge page + halyard ───────── */
 .cp {
@@ -515,7 +671,7 @@ code {
   min-height: 32px;
   padding: 4px 12px;
   border: var(--line) solid var(--ink);
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: var(--cloth);
   font-size: var(--fs-small);
   font-weight: 600;
@@ -563,10 +719,8 @@ code {
   gap: 2px;
 }
 .verdict__label {
-  font-weight: 800;
+  font-weight: 750;
   font-size: 0.95rem;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
   font-variation-settings: "wdth" var(--w-data);
   color: var(--ink);
 }
@@ -703,6 +857,7 @@ code {
 .state__halyard::after {
   content: "";
   position: absolute;
+  top: 0;
   left: 2px;
   width: 22px;
   height: 16px;
@@ -712,10 +867,10 @@ code {
 }
 @keyframes run-up {
   from {
-    top: 24px;
+    transform: translateY(24px);
   }
   to {
-    top: 0;
+    transform: none;
   }
 }
 
@@ -751,7 +906,7 @@ code {
   font-family: var(--font);
 }
 .chart text {
-  font-size: 11px;
+  font-size: 12px;
   fill: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }

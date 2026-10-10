@@ -15,6 +15,8 @@ export interface CPoint {
   color: string
   /** 0..1 fill opacity (e.g. cluster margin). */
   alpha?: number
+  /** Outline colour; signal-white points always need one to read on cloth. */
+  stroke?: string
   r?: number
   emph?: boolean
   label?: string
@@ -131,6 +133,12 @@ export function CanvasPlot({
       ctx.beginPath()
       ctx.arc(x, y, p.r ?? 2.5, 0, Math.PI * 2)
       ctx.fill()
+      if (p.stroke) {
+        ctx.globalAlpha = Math.max(0.5, p.alpha ?? 0.6)
+        ctx.strokeStyle = resolve(p.stroke)
+        ctx.lineWidth = 1.25
+        ctx.stroke()
+      }
     })
     ctx.restore()
   }, [points, px, width, height, hideAxes])

@@ -1,5 +1,6 @@
 import * as d3 from 'd3'
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import { HeroHoist } from '../components/HeroHoist'
 import { ChallengeBand, ChallengePage, Question, type HalyardStop } from '../components/Layout'
 import { Await, Figure } from '../components/Figure'
 import { VerdictTag } from '../components/Signals'
@@ -15,6 +16,7 @@ import {
   FISH_COLOR,
   HS_LABEL,
   PRED_COLOR,
+  PRED_STROKE,
   ROLE_COLOR,
   ROLE_LABEL,
   SUCC_COLOR,
@@ -126,11 +128,12 @@ export default function MC2() {
               these verdicts.
             </>
           }
-        >
-          <Await state={state} height={200}>
-            {(d) => <SummaryStrip d={d} onOpen={openPair} />}
-          </Await>
-        </ChallengeBand>
+          aside={
+            <Await state={state} height={320}>
+              {(d) => <PairHoist d={d} onOpen={openPair} />}
+            </Await>
+          }
+        />
       </div>
       <ChallengePage stops={STOPS}>
         <Q1 state={state} />
@@ -143,30 +146,32 @@ export default function MC2() {
   )
 }
 
-function SummaryStrip({ d, onOpen }: { d: Data; onOpen: (rank: number) => void }) {
+function PairHoist({ d, onOpen }: { d: Data; onOpen: (rank: number) => void }) {
   return (
-    <ul className="summary-strip mc2-strip" aria-label="The strongest successor pairs">
-      {HOIST.map((h) => {
+    <HeroHoist
+      label="The strongest successor pairs"
+      onSelect={(k) => onOpen(Number(k))}
+      items={HOIST.map((h) => {
         const p = d.sus.pairs.find((x) => x.rank === h.rank)!
-        return (
-          <li key={h.rank}>
-            <button type="button" className="mc2-strip__btn" onClick={() => onOpen(h.rank)}>
-              <VerdictTag verdict={p.verdict} confidence={toConfidence(p.confidence)} size={30} />
-              <span className="summary-strip__name">
-                {nice(p.predecessor)}
-                <span className="mc2-arrow" aria-label="succeeded by">
-                  {' '}
-                  →{' '}
-                </span>
-                {nice(p.successor)}
+        return {
+          key: String(h.rank),
+          name: (
+            <>
+              {nice(p.predecessor)}
+              <span className="hoist__arrow" aria-label="succeeded by">
+                {' '}
+                →{' '}
               </span>
-              <span className="summary-strip__note">{h.note}</span>
-              <span className="mc2-strip__go">See the handover</span>
-            </button>
-          </li>
-        )
+              {nice(p.successor)}
+            </>
+          ),
+          verdict: p.verdict,
+          confidence: toConfidence(p.confidence),
+          reason: h.note,
+          action: 'see the handover',
+        }
       })}
-    </ul>
+    />
   )
 }
 
@@ -907,7 +912,7 @@ function HandoverFigure({ d, rank }: { d: Data; rank: number }) {
       <p className="mc2-panel-label">
         {ev.shared_partners.length} shared partner{ev.shared_partners.length > 1 ? 's' : ''}: last shipment with the old company{' '}
         <svg width={10} height={10} aria-hidden>
-          <circle cx={5} cy={5} r={4} fill={PRED_COLOR} />
+          <circle cx={5} cy={5} r={4} fill={PRED_COLOR} stroke={PRED_STROKE} strokeWidth={1} />
         </svg>{' '}
         and first with the new{' '}
         <svg width={10} height={10} aria-hidden>

@@ -11,6 +11,8 @@ import {
   COMPONENT_LABEL,
   FISH_COLOR,
   PRED_COLOR,
+  PRED_DASH,
+  PRED_STROKE,
   ROLE_COLOR,
   ROLE_LABEL,
   SUCC_COLOR,
@@ -599,7 +601,7 @@ export function GapColumns({
                 )
               })}
               {(iw > 420 || i % 2 === 0) && (
-                <text x={x0.bandwidth() / 2} y={ih + 14} textAnchor="middle" style={{ fontSize: 10 }}>
+                <text x={x0.bandwidth() / 2} y={ih + 14} textAnchor="middle" style={{ fontSize: 12 }}>
                   {l}
                 </text>
               )}
@@ -806,7 +808,7 @@ export function DistPanel({
           <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--ink)" />
           {labels.map((l, i) =>
             i % every === 0 ? (
-              <text key={i} x={(x(i) ?? 0) + x.bandwidth() / 2} y={ih + 13} textAnchor="middle" style={{ fontSize: 10 }}>
+              <text key={i} x={(x(i) ?? 0) + x.bandwidth() / 2} y={ih + 13} textAnchor="middle" style={{ fontSize: 12 }}>
                 {l}
               </text>
             ) : null,
@@ -964,7 +966,7 @@ export function TransitionGrid({ transitions, focus }: { transitions: { from: Ca
           After →
         </text>
         {tos.map((t, j) => (
-          <text key={t} x={lw + j * cw + cw / 2} y={30} textAnchor="middle" style={{ fontSize: 10 }}>
+          <text key={t} x={lw + j * cw + cw / 2} y={30} textAnchor="middle" style={{ fontSize: 12 }}>
             {CAT_LABEL[t]}
           </text>
         ))}
@@ -1001,7 +1003,7 @@ export function TransitionGrid({ transitions, focus }: { transitions: { from: Ca
                   onPointerLeave={tip.hide}
                 >
                   <circle r={r(tr.pairs)} fill={same ? 'var(--series-other)' : BUNDLE_COLOR.Reliable} fillOpacity={same ? 0.5 : 1} stroke="var(--ink)" strokeWidth={same ? 0.5 : 1} />
-                  <text x={r(tr.pairs) + 3} y={0} dy="0.32em" className={same ? undefined : 'label-strong'} style={{ fontSize: 10 }}>
+                  <text x={r(tr.pairs) + 3} y={0} dy="0.32em" className={same ? undefined : 'label-strong'} style={{ fontSize: 12 }}>
                     {tr.pairs}
                   </text>
                 </g>
@@ -1138,19 +1140,19 @@ export function Handover({
           />
           {months.map((i) => (
             <g key={i}>
-              {pred[i] > 0 && <rect x={x(i) + 0.5} y={mid - y(pred[i])} width={bw} height={y(pred[i])} fill={PRED_COLOR} />}
+              {pred[i] > 0 && <rect x={x(i) + 1} y={mid - y(pred[i]) + 0.5} width={Math.max(1, bw - 1)} height={Math.max(0, y(pred[i]) - 0.5)} fill={PRED_COLOR} stroke={PRED_STROKE} strokeWidth={1} />}
               {succ[i] > 0 && <rect x={x(i) + 0.5} y={mid} width={bw} height={y(succ[i])} fill={SUCC_COLOR} />}
             </g>
           ))}
           <line x1={0} x2={iw} y1={mid} y2={mid} stroke="var(--ink)" />
           <g transform={`translate(${x(stop + 1)},0)`}>
-            <line y1={-2} y2={mid} stroke={PRED_COLOR} strokeWidth={1.5} strokeDasharray="3 2" />
+            <line y1={-2} y2={mid} stroke={PRED_STROKE} strokeWidth={1.5} strokeDasharray={PRED_DASH} />
             <text y={-4} textAnchor={x(stop + 1) > iw - 90 ? 'end' : 'middle'} className="label-strong">
               last {mLabel(stop)}
             </text>
           </g>
           <g transform={`translate(${x(start)},0)`}>
-            <line y1={mid} y2={ih + 2} stroke={SUCC_COLOR} strokeWidth={1.5} strokeDasharray="3 2" />
+            <line y1={mid} y2={ih + 2} stroke={SUCC_COLOR} strokeWidth={1.5} />
             <text y={ih - 4} dx={4} textAnchor={x(start) > iw - 90 ? 'end' : 'start'} className="label-strong">
               first {mLabel(start)}
             </text>
@@ -1308,7 +1310,16 @@ export function Consolidation({ rows, succ, succName }: { rows: { name: string; 
               <g transform={`translate(${lw},${top})`}>
                 {d3.range(m0, m1 + 1).map((m) =>
                   r.monthly[m] > 0 ? (
-                    <rect key={m} x={x(m)} y={h - (h * r.monthly[m]) / max} width={Math.max(1, x(m + 1) - x(m) - 0.5)} height={(h * r.monthly[m]) / max} fill={r.color} />
+                    <rect
+                      key={m}
+                      x={x(m) + (isNew ? 0 : 0.5)}
+                      y={h - (h * r.monthly[m]) / max + (isNew ? 0 : 0.5)}
+                      width={Math.max(1, x(m + 1) - x(m) - (isNew ? 0.5 : 1.5))}
+                      height={Math.max(0, (h * r.monthly[m]) / max - (isNew ? 0 : 0.5))}
+                      fill={r.color}
+                      stroke={isNew ? undefined : PRED_STROKE}
+                      strokeWidth={isNew ? undefined : 1}
+                    />
                   ) : null,
                 )}
                 <line x1={0} x2={iw} y1={h} y2={h} stroke="var(--rule-strong)" />

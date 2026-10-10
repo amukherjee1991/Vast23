@@ -144,7 +144,7 @@ export function AblationChart({
             const cy = by + bh + 8
             const [lo, hi] = r.control.length ? (d3.extent(r.control) as [number, number]) : [0, 0]
             return (
-              <g key={r.label} className="mark" style={{ opacity: i === step ? 1 : 0.6 }}>
+              <g key={r.label} className="mark">
                 <text x={narrow ? 0 : -10} y={narrow ? i * rowH + 10 : by + bh / 2} dy="0.32em" textAnchor={narrow ? 'start' : 'end'} className={i === step ? 'label-strong' : undefined}>
                   {r.label}
                 </text>
@@ -154,7 +154,9 @@ export function AblationChart({
                   width={Math.max(2, x(r.largest))}
                   height={bh}
                   rx={2}
-                  fill={i === 0 ? 'var(--series-other)' : 'var(--series-1)'}
+                  fill={i === 0 ? 'var(--ink-3)' : i === step ? 'var(--seq-700)' : 'var(--seq-500)'}
+                  stroke={i === step ? 'var(--ink)' : 'none'}
+                  strokeWidth={1.5}
                   onPointerMove={(e) =>
                     tip.show(
                       e,
