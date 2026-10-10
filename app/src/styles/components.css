@@ -69,8 +69,14 @@
     overflow-x: auto;
     scrollbar-width: none;
   }
-  .site-nav__link > span:not(.site-nav__mc) {
-    white-space: nowrap;
+  .site-nav {
+    justify-content: space-between;
+  }
+  .site-nav__link {
+    padding: var(--s-2);
+  }
+  .site-nav__label {
+    display: none;
   }
 }
 

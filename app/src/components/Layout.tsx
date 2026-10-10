@@ -59,7 +59,7 @@ export function SiteHeader() {
           <NavLink key={n.to} to={n.to} className="site-nav__link">
             <Flag code={n.code} size={22} decorative />
             <span>
-              <span className="site-nav__mc">MC{n.code[1]}</span> {n.label}
+              <span className="site-nav__mc">MC{n.code[1]}</span> <span className="site-nav__label">{n.label}</span>
             </span>
           </NavLink>
         ))}

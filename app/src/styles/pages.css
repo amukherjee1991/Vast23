@@ -14,7 +14,7 @@
   text-transform: uppercase;
   letter-spacing: -0.035em;
   line-height: 0.92;
-  max-width: 12ch;
+  max-width: 15ch;
 }
 .hero__lede {
   margin-top: var(--s-6);
@@ -67,7 +67,8 @@
   align-self: stretch;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-top: var(--s-6);
 }
 .mast__pole {
   position: absolute;
