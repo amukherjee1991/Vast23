@@ -134,6 +134,10 @@ export default function Method() {
           <a href="https://github.com/amukherjee1991/Vast23" target="_blank" rel="noreferrer">
             repository
           </a>
+          . They are also written up as VAST answer sheets, available as{' '}
+          <a href="https://github.com/amukherjee1991/Vast23/blob/main/submission/VAST2023-Signal-Hoist.pdf" target="_blank" rel="noreferrer">
+            one combined PDF
+          </a>
           .
         </p>
       </section>

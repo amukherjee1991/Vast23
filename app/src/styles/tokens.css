@@ -1,8 +1,9 @@
 /* Signal Hoist — design tokens.
    World: International Code of Signals. Flat flag cloth, one even ink line,
-   no gradients, no glow. Categorical order validated with the dataviz
-   validator on #f5f5f1 (blue, yellow, red, green, violet: all checks pass;
-   yellow < 3:1 so yellow marks always carry an ink outline or a label). */
+   no gradients, no glow. Categorical marks use signal cloth only: blue,
+   yellow (gold), red, black, white. Blue/gold/red pass the dataviz validator
+   on #f5f5f1; gold is < 3:1, so gold marks carry an ink outline or a label.
+   Black and white are never colour-alone: fills are ink-outlined, lines dashed. */
 
 :root {
   color-scheme: light;

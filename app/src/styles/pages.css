@@ -269,10 +269,10 @@
   flex: none;
   transition: transform var(--t-ui) var(--ease-out);
 }
-.route:nth-child(1):hover { background: var(--flag-red); }
-.route:nth-child(2):hover { background: var(--flag-blue); }
-.route:nth-child(3):hover { background: var(--flag-yellow); }
 @media (hover: hover) and (pointer: fine) {
+  .route:nth-child(1):hover { background: var(--flag-red); }
+  .route:nth-child(2):hover { background: var(--flag-blue); }
+  .route:nth-child(3):hover { background: var(--flag-yellow); }
   .route:nth-child(-n + 2):hover,
   .route:nth-child(-n + 2):hover .route__body,
   .route:nth-child(-n + 2):hover .route__data,
@@ -283,11 +283,7 @@
     transform: translateX(8px);
   }
 }
-@media (hover: none) {
-  .route:hover {
-    background: none !important;
-  }
-}
+
 @media (max-width: 720px) {
   .route {
     grid-template-columns: minmax(0, 1fr);
