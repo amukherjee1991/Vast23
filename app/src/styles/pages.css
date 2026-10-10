@@ -308,3 +308,105 @@
   font-size: var(--fs-small);
   color: var(--ink-2);
 }
+
+/* ───────── Method ───────── */
+.method {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: var(--s-9) var(--s-6) 0;
+}
+.method__title {
+  font-size: var(--fs-h1);
+  text-transform: uppercase;
+  max-width: 16ch;
+}
+.method__lede {
+  margin-top: var(--s-5);
+  font-size: 1.25rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: 60ch;
+}
+.method__section {
+  padding-top: var(--s-9);
+}
+.method__section h2 {
+  font-size: var(--fs-h2);
+  text-transform: uppercase;
+  color: var(--ink);
+  margin-bottom: var(--s-2);
+}
+.method__section.prose {
+  max-width: var(--measure);
+}
+.method__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 62ch) minmax(0, 1fr);
+  gap: var(--s-8);
+  align-items: start;
+}
+.method__cols .verdict-key {
+  grid-template-columns: minmax(0, 1fr);
+  padding: var(--s-5);
+  background: var(--cloth);
+  border: var(--line) solid var(--ink);
+  border-radius: var(--radius);
+  margin-top: var(--s-8);
+}
+.pipeline {
+  list-style: none;
+  margin: var(--s-6) 0 0;
+  padding: 0;
+  border-top: var(--line) solid var(--ink);
+}
+.pipeline__row {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) minmax(0, 1.4fr) 120px;
+  gap: var(--s-5);
+  padding: var(--s-5) 0;
+  border-bottom: var(--line) solid var(--ink);
+  align-items: start;
+}
+.pipeline__mc {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  font-weight: 850;
+  font-size: 1.25rem;
+  font-variation-settings: "wdth" var(--w-data);
+}
+.pipeline__raw {
+  font-weight: 650;
+}
+.pipeline__steps {
+  margin: 0;
+  padding-left: 1.1em;
+  display: grid;
+  gap: var(--s-2);
+  color: var(--ink-2);
+  font-size: var(--fs-small);
+}
+.pipeline__out {
+  font-weight: 750;
+  font-size: var(--fs-small);
+  text-align: right;
+}
+@media (max-width: 960px) {
+  .method {
+    padding: var(--s-8) var(--s-4) 0;
+  }
+  .method__cols {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-5);
+  }
+  .method__cols .verdict-key {
+    margin-top: 0;
+  }
+  .pipeline__row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-3);
+  }
+  .pipeline__out {
+    text-align: left;
+  }
+}

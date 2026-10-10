@@ -1,0 +1,50 @@
+{
+ "challenges": [
+  {
+   "headline": "Of 11,069 relations, 88 weak links form a 79-node layer that random edges never produce. Three of the four tipped entities sit inside it.",
+   "mc": "MC1"
+  },
+  {
+   "headline": "Five of twelve AI-predicted link bundles hold up against the real trade records. 8 company pairs look like a business shutting down and reopening under a new name.",
+   "mc": "MC2"
+  },
+  {
+   "headline": "The register's giant network is mostly people who happen to share common names. The real anomalies are small fishing-named groups with shared owners; 2 are flagged Suspect.",
+   "mc": "MC3"
+  }
+ ],
+ "hoist": [
+  {
+   "confidence": "Medium",
+   "href": "/mc1",
+   "mc": "MC1",
+   "name": "979893388",
+   "note": "Tip entity",
+   "verdict": "Suspect"
+  },
+  {
+   "confidence": "Low",
+   "href": "/mc1",
+   "mc": "MC1",
+   "name": "8327",
+   "note": "Tip entity",
+   "verdict": "Suspect"
+  },
+  {
+   "confidence": "High",
+   "href": "/mc2",
+   "mc": "MC2",
+   "name": "-811 → -206",
+   "note": "Receiver renamed 2032-12 → 2033-01",
+   "verdict": "Suspect"
+  },
+  {
+   "confidence": "Medium",
+   "href": "/mc3",
+   "mc": "MC3",
+   "name": "Adriatic Squid Ltd. Liability Co group",
+   "note": "3 companies, 5 people",
+   "verdict": "Suspect"
+  }
+ ]
+}

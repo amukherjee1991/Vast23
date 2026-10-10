@@ -30,7 +30,19 @@ export function Halyard({ stops }: { stops: HalyardStop[] }) {
       <ol>
         {stops.map((s, i) => (
           <li key={s.id} style={{ ['--i' as string]: i }}>
-            <a href={`#${s.id}`} aria-current={active === s.id ? 'true' : undefined} className="halyard__stop">
+            <a
+              href={`#${s.id}`}
+              aria-current={active === s.id ? 'true' : undefined}
+              className="halyard__stop"
+              onClick={(e) => {
+                // Under HashRouter a bare #id would be read as a route: scroll instead.
+                const el = document.getElementById(s.id)
+                if (!el) return
+                e.preventDefault()
+                el.scrollIntoView({ block: 'start' })
+                setActive(s.id)
+              }}
+            >
               <Flag code={s.flag} size={30} decorative muted={active !== s.id} />
               <span className="halyard__label">{s.label}</span>
             </a>
@@ -116,8 +128,7 @@ export function ChallengeBand({
     <section className={`band band--${tone}`}>
       <div className="band__inner">
         <div className="band__mark">
-          <Flag code={pennant} size={64} decorative />
-          <span className="band__mc">{mc}</span>
+          <Flag code={pennant} size={64} label={mc} />
         </div>
         <h1 className="band__title">{title}</h1>
         <p className="band__lede">{lede}</p>

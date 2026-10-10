@@ -1,0 +1,282 @@
+/* MC1 page: summary strip, ownership chain strip, candidate list. */
+
+/* ───────── Verdict strip in the band ───────── */
+.mc1-strip {
+  list-style: none;
+  padding: 0;
+  color: var(--ink);
+}
+.mc1-strip > li {
+  padding: 0;
+}
+.mc1-strip__btn {
+  display: grid;
+  gap: var(--s-3);
+  align-content: start;
+  width: 100%;
+  height: 100%;
+  padding: var(--s-5);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background-color var(--t-ui) var(--ease-out), transform var(--t-press) var(--ease-out);
+}
+.mc1-strip__btn:active {
+  transform: scale(0.98);
+}
+.mc1-strip__go {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+@media (hover: hover) and (pointer: fine) {
+  .mc1-strip__btn:hover {
+    background: var(--ground);
+  }
+  .mc1-strip__btn:hover .mc1-strip__go {
+    color: var(--ink);
+  }
+}
+@media (max-width: 560px) {
+  .mc1-strip > li {
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .mc1-strip > li:last-child {
+    border-bottom: 0;
+  }
+}
+
+/* ───────── Figure bits ───────── */
+.seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.fig__controls .seg + .seg {
+  padding-left: var(--s-3);
+  border-left: 1px solid var(--rule);
+}
+@media (max-width: 720px) {
+  .fig__controls .seg + .seg {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+.mc1-panel-label {
+  margin-top: var(--s-4);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.mc1-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-2);
+  margin-bottom: var(--s-2);
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
+}
+.mc1-signal {
+  display: inline-flex;
+  gap: 4px;
+  align-items: baseline;
+  padding: 1px 6px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--cloth);
+}
+.mc1-signal[data-weak="true"] {
+  border-style: dashed;
+  border-color: var(--ink-3);
+}
+.mc1-signal b {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+/* ───────── Ownership chain strip ───────── */
+.chain {
+  list-style: none;
+  margin: 0;
+  padding: var(--s-4) 0 var(--s-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  row-gap: var(--s-5);
+}
+.chain__item {
+  display: flex;
+  align-items: flex-start;
+}
+.chain__node {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  min-height: 36px;
+  border: var(--line) solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--cloth);
+  font-size: var(--fs-small);
+  font-weight: 700;
+  font-variation-settings: "wdth" var(--w-data);
+  white-space: nowrap;
+}
+.chain__node--suspect {
+  border-width: 3px;
+}
+.chain__edge {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  width: 128px;
+  padding-top: 17px;
+  transition: opacity var(--t-ui) var(--ease-out);
+}
+.chain__line {
+  display: block;
+  width: 100%;
+  border-top: 3px solid;
+}
+.chain__edge[data-weak="true"] .chain__line {
+  border-top-width: 3px;
+}
+.chain__w {
+  margin-top: 4px;
+  font-size: var(--fs-micro);
+  font-weight: 650;
+  color: var(--ink-2);
+  text-align: center;
+  line-height: 1.3;
+}
+.chain__rev {
+  display: block;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.chain__edge[data-focus="true"] .chain__w {
+  background: var(--flag-yellow);
+  color: var(--ink);
+  padding: 0 4px;
+}
+.chain__edge[data-focus="true"] .chain__line {
+  border-top-width: 5px;
+}
+.chain:has(.chain__edge[data-focus="true"]) .chain__edge:not([data-focus="true"]) {
+  opacity: 0.35;
+}
+@media (max-width: 720px) {
+  .chain {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    row-gap: 0;
+  }
+  .chain__item {
+    flex-direction: column;
+  }
+  .chain__node {
+    white-space: normal;
+  }
+  .chain__edge {
+    width: auto;
+    min-height: 56px;
+    padding: 6px 0 6px 20px;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: var(--s-3);
+  }
+  .chain__line {
+    width: 0;
+    height: 100%;
+    min-height: 44px;
+    border-top: 0;
+    border-left-width: 3px;
+  }
+  .chain__w {
+    margin-top: 0;
+    text-align: left;
+  }
+}
+
+/* ───────── Candidate list ───────── */
+.cands {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 560px;
+  overflow-y: auto;
+  border-top: 1px solid var(--rule);
+}
+.cand {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 22px auto 36px;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 34px;
+  padding: 4px var(--s-2);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--fs-small);
+  cursor: pointer;
+  transition: background-color var(--t-ui) var(--ease-out);
+}
+.cand__rank {
+  color: var(--ink-3);
+  font-weight: 700;
+  font-variation-settings: "wdth" var(--w-data);
+}
+.cand__name {
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cand__score {
+  text-align: right;
+  font-weight: 700;
+  font-variation-settings: "wdth" var(--w-data);
+}
+.cand[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--cloth);
+}
+.cand[aria-pressed="true"] .cand__rank {
+  color: var(--flag-yellow);
+}
+@media (hover: hover) and (pointer: fine) {
+  .cand:not([aria-pressed="true"]):hover {
+    background: var(--ground);
+  }
+}
+@media (pointer: coarse) {
+  .cand {
+    min-height: 44px;
+  }
+}
+.cands--stacked .cand {
+  grid-template-columns: 26px minmax(0, 1fr) 22px 36px;
+  grid-template-areas:
+    "rank name flag score"
+    ". bar bar bar";
+  row-gap: 4px;
+  padding: 6px var(--s-2);
+}
+.cands--stacked .cand__rank { grid-area: rank; }
+.cands--stacked .cand__name { grid-area: name; }
+.cands--stacked .cand__flag { grid-area: flag; }
+.cands--stacked .cand__score { grid-area: score; }
+.cands--stacked .cand__bar { grid-area: bar; }
+
+/* Claims read as inline highlighted phrases. */
+.mc1 .claim {
+  text-align: left;
+  border-radius: 1px;
+}

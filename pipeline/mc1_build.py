@@ -6,7 +6,10 @@ Run from the repo root:
 Reads  data/raw/mc1/MC1.json
 Writes app/public/data/mc1/{meta,egos,suspects,paths,candidates,communities,lowconf}.json
 
-Everything is deterministic (fixed seeds). No external data is used.
+Everything is deterministic: graphs are built in sorted node/edge order, every
+set is sorted before it is emitted, and all randomness uses fixed seeds, so the
+output is byte-identical across runs and PYTHONHASHSEED values. No external
+data is used.
 
 Key conventions used in every output file
 -----------------------------------------
@@ -19,6 +22,8 @@ Key conventions used in every output file
 * "Low-confidence layer" = edges with weight < 0.8. Background weights are
   ~uniform on [0.8, 1.0); the 88 edges below 0.8 form one connected
   structure that contains three of the four suspects (see lowconf.json).
+  The data notes do not define ``weight``; reading it as extraction
+  confidence is an interpretation, stated as such in the findings.
 """
 from __future__ import annotations
 
@@ -36,6 +41,7 @@ from scipy import stats
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "data/raw/mc1/MC1.json"
+NOTES = ROOT / "data/raw/mc1/data_notes.docx"
 OUT = ROOT / "app/public/data/mc1"
 
 SUSPECT_IDS = ["Mar de la Vida OJSC", 979893388, "Oceanfront Oasis Inc Carriers", 8327]
@@ -43,6 +49,8 @@ FISHEYE_ID = "FishEye International"
 LOW_W = 0.8          # weight threshold for the low-confidence layer
 HUB_DEG = 100        # undirected simple degree above which a node counts as a hub
 EGO_HOPS = 2
+EGO_CAP2 = 250       # max 2-hop nodes kept per ego view (hub control)
+EVID_MAX = 40        # hard cap on nodes in a candidate evidence subgraph
 N_CANDIDATES = 25
 SEED = 42
 
@@ -126,9 +134,24 @@ def load():
         links.append({"s": key(l["source"]), "t": key(l["target"]), "type": l.get("type"),
                       "w": float(w), "key": l.get("key", 0)})
     quirks["misspelled_weight_field"] = misspelled
-    quirks["declared_vs_actual"] = {"notes_nodes": 3721, "notes_edges": 7422,
+    nn, ne = notes_counts()
+    quirks["declared_vs_actual"] = {"notes_nodes": nn, "notes_edges": ne,
                                     "file_nodes": len(nodes), "file_edges": len(links)}
+    links.sort(key=lambda l: (l["s"], l["t"], l["type"] or "", l["w"], l["key"]))
+    nodes = {k: nodes[k] for k in sorted(nodes)}
     return nodes, links, quirks
+
+
+def notes_counts():
+    """Node/edge counts declared in the official data notes (they differ from the file)."""
+    try:
+        import docx
+        txt = "\n".join(p.text for p in docx.Document(str(NOTES)).paragraphs)
+        n = re.search(r"(\d+)\s+nodes", txt)
+        e = re.search(r"(\d+)\s+edges", txt)
+        return (int(n.group(1)) if n else None), (int(e.group(1)) if e else None)
+    except Exception:  # python-docx missing or notes absent: keep going
+        return None, None
 
 
 def collapse(links):
@@ -137,7 +160,7 @@ def collapse(links):
     for l in links:
         agg[(l["s"], l["t"], l["type"])].append(l["w"])
     out = []
-    for (s, t, ty), ws in agg.items():
+    for (s, t, ty), ws in sorted(agg.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or "")):
         out.append({"s": s, "t": t, "type": ty, "n": len(ws), "w": max(ws), "wmin": min(ws),
                     "wmean": float(np.mean(ws))})
     return out
@@ -145,11 +168,11 @@ def collapse(links):
 
 def build_graphs(nodes, links, cedges):
     M = nx.MultiDiGraph()
-    M.add_nodes_from(nodes)
+    M.add_nodes_from(sorted(nodes))
     for l in links:
         M.add_edge(l["s"], l["t"], type=l["type"], w=l["w"])
     D = nx.DiGraph()
-    D.add_nodes_from(nodes)
+    D.add_nodes_from(sorted(nodes))
     for e in cedges:
         if D.has_edge(e["s"], e["t"]):
             D[e["s"]][e["t"]]["n"] += e["n"]
@@ -159,8 +182,8 @@ def build_graphs(nodes, links, cedges):
         else:
             D.add_edge(e["s"], e["t"], n=e["n"], types={e["type"]}, w=e["w"], wmin=e["wmin"])
     U = nx.Graph()
-    U.add_nodes_from(nodes)
-    for s, t, a in D.edges(data=True):
+    U.add_nodes_from(sorted(nodes))
+    for s, t, a in sorted(D.edges(data=True), key=lambda e: (e[0], e[1])):
         if U.has_edge(s, t):
             U[s][t]["n"] += a["n"]
             U[s][t]["types"] |= a["types"]
@@ -170,21 +193,46 @@ def build_graphs(nodes, links, cedges):
     return M, D, U
 
 
+def induced(G, keep):
+    """Induced subgraph as a fresh graph in sorted node/edge order.
+
+    networkx subgraph *views* iterate their node filter (a Python set), so their
+    order follows string hashing and changes between processes. Copies don't.
+    """
+    keep = set(keep)
+    H = G.__class__()
+    H.add_nodes_from(sorted(n for n in G if n in keep))
+    if G.is_multigraph():
+        es = [(u, v, a) for u, v, a in G.edges(data=True) if u in keep and v in keep]
+        es.sort(key=lambda e: (e[0], e[1], e[2].get("type") or "", e[2].get("w", 0)))
+    else:
+        es = sorted(((u, v, a) for u, v, a in G.edges(data=True) if u in keep and v in keep),
+                    key=lambda e: (e[0], e[1]))
+    H.add_edges_from(es)
+    return H
+
+
+def canon_comms(comms):
+    """Communities as sorted lists, ordered by size desc then first member."""
+    cs = [sorted(c) for c in comms]
+    return sorted(cs, key=lambda c: (-len(c), c[0]))
+
+
 # ----------------------------------------------------------------------------
 # Global metrics
 # ----------------------------------------------------------------------------
 
 def global_metrics(nodes, M, D, U):
-    comps = sorted(nx.connected_components(U), key=len, reverse=True)
-    lcc = U.subgraph(comps[0]).copy()
+    comps = canon_comms(nx.connected_components(U))
+    lcc = induced(U, comps[0])
     print("betweenness on LCC", lcc.number_of_nodes(), file=sys.stderr)
     btw = nx.betweenness_centrality(lcc, normalized=True)
     pr = nx.pagerank(D, alpha=0.85)
     pr_u = nx.pagerank(U, alpha=0.85)
     comm_runs = []
     for seed in range(5):
-        comm_runs.append(nx.community.louvain_communities(U, seed=SEED + seed, resolution=1.0))
-    comms = sorted(comm_runs[0], key=len, reverse=True)
+        comm_runs.append(canon_comms(nx.community.louvain_communities(U, seed=SEED + seed, resolution=1.0)))
+    comms = comm_runs[0]
     comm_of = {}
     for i, c in enumerate(comms):
         for n in c:
@@ -264,6 +312,19 @@ def lowconf_layer(nodes, links, suspects):
         ht, _ = np.histogram([l["w"] for l in links if l["type"] == t], bins=hist_bins)
         hist_by_type[t] = ht.tolist()
     layer_nodes = sorted(comps[0]) if comps else []
+    # ownership structure inside the layer: circular ownership + longest chain
+    LO = nx.DiGraph()
+    for l in low:
+        if l["type"] == "ownership" and l["s"] != l["t"]:
+            LO.add_edge(l["s"], l["t"])
+    cycles = []
+    for c in nx.simple_cycles(LO):
+        i = c.index(min(c))           # rotate to a canonical start
+        cycles.append(c[i:] + c[:i])
+    cycles.sort(key=lambda c: (len(c), c))
+    cond = nx.condensation(LO)
+    longest = nx.dag_longest_path(cond)
+    longest_nodes = [sorted(cond.nodes[x]["members"])[0] for x in longest]
     out = {
         "threshold": LOW_W,
         "n_edges": len(low),
@@ -279,6 +340,11 @@ def lowconf_layer(nodes, links, suspects):
         "null_p_value": r4((np.sum(sizes >= len(layer_nodes)) + 1) / (len(sizes) + 1)),
         "weight_hist": {"bins": hist_bins.tolist(), "all": h.tolist(), "by_type": hist_by_type},
         "suspects_in_layer": [s for s in suspects if s in G],
+        "ownership_cycles": cycles,
+        "ownership_longest_chain": {"length": len(longest) - 1, "nodes": longest_nodes,
+                                    "note": "longest directed chain of low-weight ownership edges "
+                                            "after collapsing cycles (one representative per cycle)"},
+        "class_counts": {k: v for k, v in sorted(Counter(nodes[n]["cls"] for n in layer_nodes).items())},
         "nodes": [{"k": n, "low": G.degree(n), "cls": nodes[n]["cls"]} for n in layer_nodes],
         "links": [{"s": l["s"], "t": l["t"], "type": l["type"], "w": r4(l["w"])} for l in low],
     }
@@ -348,20 +414,20 @@ def build_egos(nodes, M, D, U, suspects):
             pri = (support[x] >= 2) * 2 + lowtouch * 3 + (nodes[x]["cls"] in ("company", "company_like")) * 1
             keep2.append((pri, support[x], -nodes[x]["deg"], x))
         keep2.sort(reverse=True)
-        kept2 = [x for p, sup, nd, x in keep2 if p > 0][:400]
+        kept2 = [x for p, sup, nd, x in keep2 if p > 0][:EGO_CAP2]
         members = [s] + h1 + kept2
         mset = set(members)
         for n in members:
             node_table[n] = True
         links = []
-        for u, v, a in M.subgraph(mset).edges(data=True):
+        for u, v, a in induced(M, mset).edges(data=True):
             links.append([u, v, a["type"], r4(a["w"])])
         # collapse identical parallel duplicates into one row with count
         agg = defaultdict(list)
         for u, v, t, w in links:
             agg[(u, v, t)].append(w)
         links_c = [{"s": u, "t": v, "type": t, "w": max(ws), "wmin": min(ws), "n": len(ws)}
-                   for (u, v, t), ws in agg.items()]
+                   for (u, v, t), ws in sorted(agg.items())]
         roles = {}
         for n in members:
             if n == s:
@@ -394,22 +460,23 @@ def build_egos(nodes, M, D, U, suspects):
 def paths_between(nodes, U, D, suspects, low_nodes):
     hubs = {n for n in U if U.degree(n) > HUB_DEG}
     junk = {n for n in U if nodes[n]["cls"] in NOISE_CLASSES}
-    clean = U.subgraph([n for n in U if n not in junk or n in suspects])
-    nohub = U.subgraph([n for n in U if (n not in hubs and n not in junk) or n in suspects])
+    clean = induced(U, [n for n in U if n not in junk or n in suspects])
+    nohub = induced(U, [n for n in U if (n not in hubs and n not in junk) or n in suspects])
     lowG = nx.Graph()
-    for u, v, a in U.edges(data=True):
+    for u, v, a in sorted(U.edges(data=True), key=lambda e: (e[0], e[1])):
         if a["wmin"] < LOW_W:
             lowG.add_edge(u, v)
-    O = nx.DiGraph([(u, v) for u, v, a in D.edges(data=True)
-                    if "ownership" in a["types"] and u not in junk and v not in junk])
+    O = nx.DiGraph(sorted((u, v) for u, v, a in D.edges(data=True)
+                          if "ownership" in a["types"] and u not in junk and v not in junk))
 
     def sp(G, a, b, cap=25):
+        """Up to `cap` shortest paths (enumerate <=500, sort, keep first `cap`)."""
         try:
-            ps = list(itertools.islice(nx.all_shortest_paths(G, a, b), cap))
-            n_all = None
-            return {"length": len(ps[0]) - 1, "paths": ps, "n_listed": len(ps)}
+            ps = sorted(itertools.islice(nx.all_shortest_paths(G, a, b), 500))
+            return {"length": len(ps[0]) - 1, "paths": ps[:cap], "n_listed": min(len(ps), cap),
+                    "n_found": len(ps)}
         except (nx.NetworkXNoPath, nx.NodeNotFound):
-            return {"length": None, "paths": [], "n_listed": 0}
+            return {"length": None, "paths": [], "n_listed": 0, "n_found": 0}
 
     pairs = []
     for a, b in itertools.combinations(suspects, 2):
@@ -421,9 +488,9 @@ def paths_between(nodes, U, D, suspects, low_nodes):
             "any": sp(U, a, b),
             "no_junk": sp(clean, a, b),
             "no_hubs_no_junk": sp(nohub, a, b),
-            "low_conf_only": sp(lowG, a, b) if a in lowG and b in lowG else {"length": None, "paths": [], "n_listed": 0},
-            "ownership_directed": sp(O, a, b) if a in O and b in O else {"length": None, "paths": [], "n_listed": 0},
-            "ownership_directed_rev": sp(O, b, a) if a in O and b in O else {"length": None, "paths": [], "n_listed": 0},
+            "low_conf_only": sp(lowG, a, b) if a in lowG and b in lowG else {"length": None, "paths": [], "n_listed": 0, "n_found": 0},
+            "ownership_directed": sp(O, a, b) if a in O and b in O else {"length": None, "paths": [], "n_listed": 0, "n_found": 0},
+            "ownership_directed_rev": sp(O, b, a) if a in O and b in O else {"length": None, "paths": [], "n_listed": 0, "n_found": 0},
             "shared_1hop": sorted(na & nb),
             "shared_2hop_count": len(n2a & n2b),
             "jaccard_1hop": r4(len(na & nb) / len(na | nb)) if na | nb else 0.0,
@@ -458,7 +525,7 @@ def paths_between(nodes, U, D, suspects, low_nodes):
         "suspect_mean_pair_distance": r4(obs),
         "degree_matched_4set_mean_distance": {"mean": r4(means.mean()), "p05": r4(np.percentile(means, 5)),
                                               "frac_le_observed": r4(np.mean(means <= obs)), "draws": int(len(means))},
-        "hubs": sorted(hubs, key=lambda n: -U.degree(n)),
+        "hubs": sorted(hubs, key=lambda n: (-U.degree(n), n)),
         "hub_threshold": HUB_DEG,
     }
     return pairs, null
@@ -469,7 +536,7 @@ def paths_between(nodes, U, D, suspects, low_nodes):
 # ----------------------------------------------------------------------------
 
 FEATURES = [
-    ("low_conf", 0.25, "Edges in the low-confidence layer (weight < 0.8) touching the node; 3 of 4 suspects sit in this 79-node layer"),
+    ("low_conf", 0.25, "Edges in the low-confidence layer (weight < 0.8) touching the node; 3 of 4 suspects sit in this layer (see lowconf.json)"),
     ("proximity", 0.20, "How many suspects are within 2 hops (undirected), plus 1/min-distance to nearest suspect"),
     ("shared_nbrs", 0.15, "Max cosine overlap of the node's neighbour set with any suspect's (hub-normalised)"),
     ("ownership", 0.15, "Ownership fan-in + fan-out (distinct counterparties), the shell-company signal"),
@@ -554,7 +621,7 @@ def candidates(nodes, M, U, suspects, low_nodes):
             if nd["cls"] in POOL_CLASSES and n not in suspects and n != FISHEYE_ID and nd["deg"] > 0]
     rows = raw_features(nodes, U, suspects, pool, fisheye_nbrs)
     scores, parts = score_rows(rows)
-    ranked = sorted(pool, key=lambda k: -scores[k])
+    ranked = sorted(pool, key=lambda k: (-scores[k], k))
 
     # --- validation 1: leave-one-suspect-out
     loo = []
@@ -563,9 +630,9 @@ def candidates(nodes, M, U, suspects, low_nodes):
         p2 = pool + [s]
         r2 = raw_features(nodes, U, seeds, p2, fisheye_nbrs)
         sc2, _ = score_rows(r2)
-        order = sorted(p2, key=lambda k: -sc2[k])
+        order = sorted(p2, key=lambda k: (-sc2[k], k))
         rank = order.index(s) + 1
-        deg_order = sorted(p2, key=lambda k: -nodes[k]["deg"])
+        deg_order = sorted(p2, key=lambda k: (-nodes[k]["deg"], k))
         loo.append({"held_out": s, "rank": rank, "pool": len(p2),
                     "percentile": r4(1 - (rank - 1) / (len(p2) - 1)),
                     "degree_baseline_rank": deg_order.index(s) + 1})
@@ -580,7 +647,7 @@ def candidates(nodes, M, U, suspects, low_nodes):
         sc, _ = score_rows(rows, {f: wv[i] for i, (f, _, _) in enumerate(FEATURES)})
         vec = np.array([sc[k] for k in pool])
         rhos.append(stats.spearmanr(base_vec, vec).correlation)
-        for k in sorted(pool, key=lambda k: -sc[k])[:N_CANDIDATES]:
+        for k in sorted(pool, key=lambda k: (-sc[k], k))[:N_CANDIDATES]:
             top_hits[k] += 1
     # --- validation 3: ablation (drop each feature; overlap of top-25)
     top_base = set(ranked[:N_CANDIDATES])
@@ -588,7 +655,7 @@ def candidates(nodes, M, U, suspects, low_nodes):
     for f, _, _ in FEATURES:
         wd = {g: (0.0 if g == f else wt) for g, wt, _ in FEATURES}
         sc, _ = score_rows(rows, wd)
-        top = set(sorted(pool, key=lambda k: -sc[k])[:N_CANDIDATES])
+        top = set(sorted(pool, key=lambda k: (-sc[k], k))[:N_CANDIDATES])
         ablation[f] = len(top & top_base)
     # --- correlation with plain degree (is it just a hub detector?)
     rho_deg = stats.spearmanr(base_vec, [nodes[k]["deg"] for k in pool]).correlation
@@ -602,6 +669,8 @@ def candidates(nodes, M, U, suspects, low_nodes):
             "features_raw": {f: r4(rows[k][f]) for f, _, _ in FEATURES},
             "features_norm": {f: r4(parts[k][f]) for f, _, _ in FEATURES},
             "contrib": {f: r4(parts[k][f] * wt) for f, wt, _ in FEATURES},
+            "why": [f for f, _ in sorted(((f, parts[k][f] * wt) for f, wt, _ in FEATURES),
+                                         key=lambda x: (-x[1], x[0]))[:3] if parts[k][f] > 0],
             "min_dist_to_suspect": rows[k]["_min_dist"],
             "in_low_layer": k in low_nodes,
             "is_hub": nodes[k]["deg"] > HUB_DEG,
@@ -627,6 +696,8 @@ def candidates(nodes, M, U, suspects, low_nodes):
 
 
 def evidence_subgraph(nodes, M, U, c, suspects, low_nodes, max_nodes=22):
+    """Small explanation graph: candidate, path to nearest suspect, low-weight and
+    ownership counterparties. Hard-capped at EVID_MAX nodes."""
     keep = {c}
     # shortest path to the nearest suspect
     best = None
@@ -640,11 +711,11 @@ def evidence_subgraph(nodes, M, U, c, suspects, low_nodes, max_nodes=22):
     if best:
         keep |= set(best)
     # low-confidence neighbours
-    for v in U[c]:
-        if U[c][v]["wmin"] < LOW_W:
+    for v in sorted(U[c], key=lambda v: (U[c][v]["wmin"], v)):
+        if U[c][v]["wmin"] < LOW_W and len(keep) < EVID_MAX:
             keep.add(v)
     # ownership counterparties, then others by degree
-    own = sorted([v for v in U[c] if "ownership" in U[c][v]["types"]], key=lambda v: -nodes[v]["deg"])
+    own = sorted([v for v in U[c] if "ownership" in U[c][v]["types"]], key=lambda v: (-nodes[v]["deg"], v))
     for v in own:
         if len(keep) >= max_nodes:
             break
@@ -652,11 +723,12 @@ def evidence_subgraph(nodes, M, U, c, suspects, low_nodes, max_nodes=22):
     for s in suspects:
         if U.has_edge(c, s):
             keep.add(s)
+    assert len(keep) <= EVID_MAX + len(suspects), (c, len(keep))
     links = []
     agg = defaultdict(list)
-    for u, v, a in M.subgraph(keep).edges(data=True):
+    for u, v, a in induced(M, keep).edges(data=True):
         agg[(u, v, a["type"])].append(a["w"])
-    for (u, v, t), ws in agg.items():
+    for (u, v, t), ws in sorted(agg.items()):
         links.append({"s": u, "t": v, "type": t, "w": r4(min(ws)), "n": len(ws)})
     return {"nodes": sorted(keep), "path_to_suspect": best, "links": links}
 
@@ -675,14 +747,19 @@ def name_lookalikes(nodes, s, limit=5):
     return [{"label": x, "ratio": r4(difflib.SequenceMatcher(None, lab, x).ratio())} for x in m]
 
 
-def suspect_profiles(nodes, M, D, U, suspects, low_nodes, comm_runs, fisheye_nbrs):
+def percentiles(nodes):
     allk = list(nodes)
     pct = {}
     for f in ("deg", "mdeg", "btw", "pr", "own_out", "own_in", "low", "max_par"):
         pr = pct_rank([nodes[k][f] for k in allk])
         pct[f] = dict(zip(allk, pr))
+    return pct
+
+
+def suspect_profiles(nodes, M, D, U, O, suspects, low_nodes, comm_runs, fisheye_nbrs, pct):
     out = []
     for s in suspects:
+        rb = rubric(nodes, U, D, O, s, [x for x in suspects if x != s], low_nodes, fisheye_nbrs, pct["btw"])
         nd = nodes[s]
         nb = list(U[s])
         nbc = Counter(nodes[v]["cls"] for v in nb)
@@ -693,6 +770,7 @@ def suspect_profiles(nodes, M, D, U, suspects, low_nodes, comm_runs, fisheye_nbr
             same_comm_runs.append([x for x in suspects if m[x] == m[s] and x != s])
         out.append({
             "k": s, "label": nd["label"], "type": nd["type"], "cls": nd["cls"], "country": nd["country"],
+            "verdict": rb["verdict"], "confidence": rb["confidence"], "rubric": rb,
             "deg": nd["deg"], "mdeg": nd["mdeg"], "out": nd["out"], "in": nd["in"],
             "own_out": nd["own_out"], "own_in": nd["own_in"],
             "et_out": nd["et_out"], "et_in": nd["et_in"],
@@ -708,11 +786,151 @@ def suspect_profiles(nodes, M, D, U, suspects, low_nodes, comm_runs, fisheye_nbr
             "profile_axes": [f"out_{t}" for t in EDGE_TYPES] + [f"in_{t}" for t in EDGE_TYPES] + ["out_share", "low_conf_share"],
             "louvain_cosuspects_by_seed": same_comm_runs,
             "name_lookalikes": name_lookalikes(nodes, s),
+            "ownership_chains": ownership_chains(nodes, O, s, suspects),
+            "keyword_context_2hop": keyword_context(nodes, U, s),
             "neighbors_1hop": [{"k": v, "dir": ("out" if D.has_edge(s, v) else "") + ("in" if D.has_edge(v, s) else ""),
                                 "types": sorted(U[s][v]["types"]), "n": U[s][v]["n"], "wmin": r4(U[s][v]["wmin"])}
-                               for v in sorted(nb, key=lambda v: U[s][v]["wmin"])],
+                               for v in sorted(nb, key=lambda v: (U[s][v]["wmin"], v))],
         })
     return out
+
+
+# ----------------------------------------------------------------------------
+# Ownership chains, keyword context, verdict rubric
+# ----------------------------------------------------------------------------
+
+KW_ILLEGAL = re.compile(r"illegal|iuu|poach|smuggl|guilty|crime|criminal|arrest|fraud|launder|contraband|bribe",
+                        re.I)
+CHAIN_HOPS = 6
+
+
+def ownership_graph(nodes, cedges, suspects):
+    """Directed ownership graph as recorded (source -> target), junk removed.
+
+    Edge attribute w = the highest weight among the ownership rows of that pair.
+    The data notes do not say whether source owns target or the reverse, so
+    chains are reported in the recorded direction and also undirected.
+    """
+    O = nx.DiGraph()
+    keep = sorted(n for n in nodes if nodes[n]["cls"] not in NOISE_CLASSES or n in suspects)
+    O.add_nodes_from(keep)
+    ks = set(keep)
+    for e in cedges:
+        if e["type"] == "ownership" and e["s"] in ks and e["t"] in ks and e["s"] != e["t"]:
+            if O.has_edge(e["s"], e["t"]):
+                O[e["s"]][e["t"]]["w"] = max(O[e["s"]][e["t"]]["w"], e["w"])
+            else:
+                O.add_edge(e["s"], e["t"], w=e["w"])
+    return O
+
+
+def widest_shortest(G, a, b, wfn):
+    """Among shortest a->b paths, the one whose weakest edge is strongest."""
+    try:
+        ps = list(itertools.islice(nx.all_shortest_paths(G, a, b), 2000))
+    except (nx.NetworkXNoPath, nx.NodeNotFound):
+        return None
+    best = max(sorted(ps), key=lambda p: min(wfn(u, v) for u, v in zip(p, p[1:])))
+    return {"path": best, "length": len(best) - 1,
+            "min_w": r4(min(wfn(u, v) for u, v in zip(best, best[1:]))),
+            "n_shortest": len(ps)}
+
+
+def ownership_chains(nodes, O, s, suspects, cap=40):
+    def layer(fn):
+        dist = bfs_layers(fn, s, CHAIN_HOPS)
+        rows = sorted(((d, v) for v, d in dist.items() if d > 0))
+        by = Counter(d for d, _ in rows)
+        return {"by_depth": [by.get(h, 0) for h in range(1, CHAIN_HOPS + 1)], "total": len(rows),
+                "nodes": [{"k": v, "d": d} for d, v in rows[:cap]]}
+    Ou = O.to_undirected(as_view=False)
+    links = []
+    for t in suspects:
+        if t == s:
+            continue
+        fwd = widest_shortest(O, s, t, lambda u, v: O[u][v]["w"])
+        und = widest_shortest(Ou, s, t, lambda u, v: Ou[u][v]["w"])
+        links.append({"to": t, "directed": fwd, "undirected": und})
+    return {"downstream": layer(O.successors), "upstream": layer(O.predecessors),
+            "to_suspects": links}
+
+
+def keyword_context(nodes, U, s, hops=2):
+    dist = bfs_layers(U.neighbors, s, hops)
+    hits = sorted((d, v) for v, d in dist.items() if d > 0 and KW_ILLEGAL.search(nodes[v]["label"]))
+    return [{"k": v, "d": d} for d, v in hits]
+
+
+VERDICTS = ["Suspect", "Possible", "Insufficient evidence", "Unlikely"]
+CONFIDENCE = ["High", "Medium", "Low"]
+RUBRIC = [
+    # id, max points, description
+    ("low_layer", 1.0, "In the anomalous low-weight layer (1) or one hop from it (0.5)"),
+    ("fisheye_tag", 1.0, "Direct edge from the 'FishEye International' node (1) or via one intermediary (0.5)"),
+    ("low_ownership", 1.0, "Has a low-weight (< 0.8) ownership edge, the layer's dominant relation"),
+    ("chain_to_suspect", 1.0, "Directed ownership chain (<= 6 hops) to or from another suspect"),
+    ("broker", 1.0, "Betweenness in the top 5% of all nodes (structural broker)"),
+    ("shell_marker", 1.0, "Nameless numeric id that both owns and is owned (intermediary layer)"),
+    ("illegal_keyword", 0.5, "A one-hop neighbour is an NLP fragment about illegality (e.g. '“Illegal')"),
+]
+SUSPECT_AT, POSSIBLE_AT, INSUFF_AT = 4.0, 2.5, 1.0
+
+
+def rubric(nodes, U, D, O, k, others, low_nodes, fisheye_nbrs, btw_pct):
+    """Score one entity on the transparent verdict rubric.
+
+    Each signal records its points and the weight of the weakest data edge it
+    rests on ('basis_w', None for purely structural signals). Confidence counts
+    signals that rest on edges with weight >= LOW_W (or on structure alone).
+    """
+    nd = nodes[k]
+    sig = {}
+    nb = set(U[k])
+    # 1 layer
+    if k in low_nodes:
+        sig["low_layer"] = (1.0, r4(min(U[k][v]["wmin"] for v in nb)), "member of the layer")
+    elif nb & low_nodes:
+        v = sorted(nb & low_nodes)[0]
+        sig["low_layer"] = (0.5, None, f"adjacent to layer node {v}")
+    # 2 FishEye
+    if FISHEYE_ID in nb:
+        sig["fisheye_tag"] = (1.0, r4(U[k][FISHEYE_ID]["wmin"]), "direct FishEye edge")
+    else:
+        via = sorted(v for v in nb if v in fisheye_nbrs)
+        if via:
+            sig["fisheye_tag"] = (0.5, r4(U[k][via[0]]["wmin"]), f"via {via[0]}")
+    # 3 low-weight ownership
+    if nd["low_own"] > 0:
+        lw = min(U[k][v]["wmin"] for v in nb if "ownership" in U[k][v]["types"])
+        sig["low_ownership"] = (1.0, r4(lw), f"{nd['low_own']} low-weight ownership row(s)")
+    # 4 ownership chain
+    best = None
+    for t in others:
+        for a, b in ((k, t), (t, k)):
+            r = widest_shortest(O, a, b, lambda u, v: O[u][v]["w"])
+            if r and r["length"] <= CHAIN_HOPS and (best is None or (r["length"], -r["min_w"]) < (best["length"], -best["min_w"])):
+                best = r
+    if best:
+        sig["chain_to_suspect"] = (1.0, best["min_w"], " -> ".join(best["path"]))
+    # 5 broker
+    if btw_pct[k] >= 0.95:
+        sig["broker"] = (1.0, None, f"betweenness percentile {btw_pct[k]:.3f}")
+    # 6 shell marker
+    if nd["raw_int"] and nd["own_in"] > 0 and nd["own_out"] > 0:
+        ws = [U[k][v]["wmin"] for v in nb if "ownership" in U[k][v]["types"]]
+        sig["shell_marker"] = (1.0, r4(max(ws)), f"owns {nd['own_out']}, owned by {nd['own_in']}")
+    # 7 keyword
+    kws = sorted(v for v in nb if KW_ILLEGAL.search(nodes[v]["label"]))
+    if kws:
+        sig["illegal_keyword"] = (0.5, r4(U[k][kws[0]]["wmin"]), kws[0])
+    pts = sum(p for p, _, _ in sig.values())
+    solid = sum(1 for p, w, _ in sig.values() if p >= 1.0 and (w is None or w >= LOW_W))
+    verdict = ("Suspect" if pts >= SUSPECT_AT else "Possible" if pts >= POSSIBLE_AT
+               else "Insufficient evidence" if pts >= INSUFF_AT else "Unlikely")
+    conf = "High" if solid >= 4 else "Medium" if solid >= 2 else "Low"
+    return {"points": r4(pts), "solid_signals": solid, "verdict": verdict, "confidence": conf,
+            "signals": [{"id": i, "points": sig[i][0], "basis_w": sig[i][1], "detail": sig[i][2]}
+                        for i, _, _ in RUBRIC if i in sig]}
 
 
 # ----------------------------------------------------------------------------
@@ -724,8 +942,8 @@ def community_summary(nodes, U, comms, other_maps, suspects, cand_keys, low_node
     out = []
     for i, c in enumerate(comms[:max_comms]):
         cl = Counter(nodes[n]["cls"] for n in c)
-        top = sorted(c, key=lambda n: -U.degree(n))[:8]
-        internal = U.subgraph(c).number_of_edges()
+        top = sorted(c, key=lambda n: (-U.degree(n), n))[:8]
+        internal = induced(U, c).number_of_edges()
         out.append({"id": i, "size": len(c), "classes": dict(cl), "top_nodes": top,
                     "internal_edges": internal,
                     "suspects": [s for s in suspects if s in c],
@@ -761,11 +979,11 @@ def anomalies(nodes, U, D, M):
     par = sorted(((U[u][v]["n"], u, v, sorted(U[u][v]["types"])) for u, v in U.edges() if U[u][v]["n"] >= 4),
                  reverse=True)[:30]
     pool = [k for k in nodes if nodes[k]["cls"] in POOL_CLASSES]
-    fan_out = sorted(pool, key=lambda k: -nodes[k]["own_out"])[:15]
-    fan_in = sorted(pool, key=lambda k: -nodes[k]["own_in"])[:15]
-    hubs = sorted(nodes, key=lambda k: -nodes[k]["deg"])[:20]
+    fan_out = sorted(pool, key=lambda k: (-nodes[k]["own_out"], k))[:15]
+    fan_in = sorted(pool, key=lambda k: (-nodes[k]["own_in"], k))[:15]
+    hubs = sorted(nodes, key=lambda k: (-nodes[k]["deg"], k))[:20]
     hub_set = [k for k in nodes if nodes[k]["deg"] > HUB_DEG]
-    H = U.subgraph(hub_set)
+    H = induced(U, hub_set)
     hub_core = {"nodes": sorted(hub_set, key=lambda k: -nodes[k]["deg"]),
                 "edges": [{"a": u, "b": v, "n": a["n"], "types": sorted(a["types"])} for u, v, a in H.edges(data=True)],
                 "density": r4(nx.density(H)),
@@ -787,7 +1005,7 @@ def anomalies(nodes, U, D, M):
         "ownership_fan_out": [{"k": k, "n": nodes[k]["own_out"]} for k in fan_out],
         "ownership_fan_in": [{"k": k, "n": nodes[k]["own_in"]} for k in fan_in],
         "mutual_ownership_pairs": len(mutual),
-        "ownership_cycles_le4": dict(cyc_len),
+        "ownership_cycles_le4": {str(k): v for k, v in sorted(cyc_len.items())},
         "max_parallel_pairs": [{"a": u, "b": v, "n": n, "types": t} for n, u, v, t in par],
         "class_counts": dict(Counter(nd["cls"] for nd in nodes.values())),
         "untyped": sum(1 for nd in nodes.values() if nd["type"] is None),
@@ -806,7 +1024,7 @@ def node_record(nd):
 
 def dump(name, obj):
     p = OUT / name
-    s = json.dumps(obj, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+    s = json.dumps(obj, separators=(",", ":"), ensure_ascii=False, allow_nan=False, sort_keys=True)
     p.write_text(s, encoding="utf-8")
     print(f"wrote {p.relative_to(ROOT)} {len(s.encode()) / 1024:.1f} KB", file=sys.stderr)
 
@@ -842,8 +1060,15 @@ def main():
 
     egos, ego_nodes = build_egos(nodes, M, D, U, suspects)
     pairs, path_null = paths_between(nodes, U, D, suspects, low_nodes)
-    sus = suspect_profiles(nodes, M, D, U, suspects, low_nodes, comm_runs, fisheye_nbrs)
+    O = ownership_graph(nodes, cedges, suspects)
+    pct = percentiles(nodes)
+    sus = suspect_profiles(nodes, M, D, U, O, suspects, low_nodes, comm_runs, fisheye_nbrs, pct)
     cands, cand_meta = candidates(nodes, M, U, suspects, low_nodes)
+    for c in cands:
+        c["rubric"] = rubric(nodes, U, D, O, c["k"], suspects, low_nodes, fisheye_nbrs, pct["btw"])
+    cand_meta["features"] = [{"name": f, "weight": wt,
+                              "desc": d.replace("this layer", f"this {lowc['n_nodes']}-node layer")}
+                             for f, wt, d in FEATURES]
     comm = community_summary(nodes, U, comms, other_maps, suspects, [c["k"] for c in cands], low_nodes)
     anom = anomalies(nodes, U, D, M)
 
@@ -872,12 +1097,30 @@ def main():
         "suspects": suspects,
         "fisheye_node": FISHEYE_ID,
         "anomalies": anom,
-        "params": {"low_conf_threshold": LOW_W, "hub_degree": HUB_DEG, "ego_hops": EGO_HOPS, "seed": SEED},
+        "params": {"low_conf_threshold": LOW_W, "hub_degree": HUB_DEG, "ego_hops": EGO_HOPS, "seed": SEED,
+                   "ego_cap_2hop": EGO_CAP2, "evidence_max_nodes": EVID_MAX, "chain_hops": CHAIN_HOPS,
+                   "n_candidates": N_CANDIDATES},
+        "generated_by": "pipeline/mc1_build.py",
     })
     dump("lowconf.json", {**lowc, "node_table": table([n["k"] for n in lowc["nodes"]])})
     dump("egos.json", {"egos": egos, "node_table": table(ego_nodes)})
-    dump("suspects.json", {"suspects": sus,
-                           "node_table": table([n["k"] for s in sus for n in s["neighbors_1hop"]] + suspects)})
+    sus_nodes = ([n["k"] for s in sus for n in s["neighbors_1hop"]] + suspects
+                 + [n["k"] for s in sus for n in s["keyword_context_2hop"]]
+                 + [n["k"] for s in sus for side in ("downstream", "upstream")
+                    for n in s["ownership_chains"][side]["nodes"]]
+                 + [v for s in sus for l in s["ownership_chains"]["to_suspects"]
+                    for kind in ("directed", "undirected") if l[kind] for v in l[kind]["path"]]
+                 + [n for s in sus for n in s["hub_neighbors"]])
+    dump("suspects.json", {
+        "suspects": sus,
+        "verdict_scale": VERDICTS, "confidence_scale": CONFIDENCE,
+        "rubric": {"signals": [{"id": i, "max": m, "desc": d} for i, m, d in RUBRIC],
+                   "thresholds": {"Suspect": SUSPECT_AT, "Possible": POSSIBLE_AT,
+                                  "Insufficient evidence": INSUFF_AT, "Unlikely": 0.0},
+                   "confidence_rule": "High if >= 4 full-point signals rest on edges with weight >= 0.8 "
+                                      "(or on structure alone); Medium if 2-3; Low if 0-1",
+                   "chain_hops": CHAIN_HOPS},
+        "node_table": table(sus_nodes)})
     path_nodes = [n for p in pairs for kind in ("any", "no_junk", "no_hubs_no_junk", "low_conf_only",
                                                 "ownership_directed", "ownership_directed_rev")
                   for path in p[kind]["paths"] for n in path] + [n for p in pairs for n in p["shared_1hop"]]

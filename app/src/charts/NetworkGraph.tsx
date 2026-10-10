@@ -20,10 +20,12 @@ export interface GLink {
   target: string
   type?: string | null
   weight?: number
+  /** Draw this link dashed (e.g. a low-weight edge), independent of its type. */
+  dashed?: boolean
 }
 
 type SimNode = GNode & d3.SimulationNodeDatum
-type SimLink = d3.SimulationLinkDatum<SimNode> & { type?: string | null; weight?: number }
+type SimLink = d3.SimulationLinkDatum<SimNode> & { type?: string | null; weight?: number; dashed?: boolean }
 
 /** Node-link view laid out once (static force run), then pan/zoom + hover.
     Shape and colour both encode entity type; hovering isolates neighbours. */
@@ -36,6 +38,7 @@ export function NetworkGraph({
   onSelect,
   selected,
   showAllLabels,
+  path,
 }: {
   nodes: GNode[]
   links: GLink[]
@@ -45,6 +48,9 @@ export function NetworkGraph({
   onSelect?: (id: string) => void
   selected?: string | null
   showAllLabels?: boolean
+  /** Highlight a walk through the graph (consecutive ids are joined by links);
+      everything off the walk is dimmed until the pointer hovers a node. */
+  path?: string[] | null
 }) {
   const [ref, width] = useWidth<HTMLDivElement>()
   const tip = useTooltip()
@@ -84,7 +90,7 @@ export function NetworkGraph({
   const pad = 40
   const sx = (width - pad * 2) / Math.max(1, layout.xe[1] - layout.xe[0])
   const sy = (height - pad * 2) / Math.max(1, layout.ye[1] - layout.ye[0])
-  const k = Math.min(2.2, sx, sy)
+  const k = Math.min(3.2, sx, sy)
   const cx = (layout.xe[0] + layout.xe[1]) / 2
   const cy = (layout.ye[0] + layout.ye[1]) / 2
   const px = (x: number) => width / 2 + (x - cx) * k
@@ -95,7 +101,8 @@ export function NetworkGraph({
     const z = d3
       .zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.5, 6])
-      .filter((e) => e.type !== 'wheel' || e.ctrlKey || e.metaKey)
+      // Wheel zooms only with a modifier; one finger scrolls the page, two fingers pan/zoom.
+      .filter((e) => (e.type !== 'wheel' || e.ctrlKey || e.metaKey) && !(e.type === 'touchstart' && e.touches?.length < 2))
       .on('zoom', (e) => setTransform(e.transform))
     d3.select(svgRef.current).call(z)
     return () => {
@@ -103,9 +110,20 @@ export function NetworkGraph({
     }
   }, [])
 
+  const pathNodes = useMemo(() => (path && path.length ? new Set(path) : null), [path])
+  const pathEdges = useMemo(() => {
+    const s = new Set<string>()
+    path?.forEach((p, i) => {
+      if (i === 0) return
+      s.add(`${path[i - 1]}\u0000${p}`)
+      s.add(`${p}\u0000${path[i - 1]}`)
+    })
+    return s
+  }, [path])
+  const onPath = !hover && pathNodes
   const focus = hover ?? selected ?? null
-  const near = focus ? layout.adj.get(focus) ?? new Set<string>() : null
-  const isOn = (id: string) => !near || id === focus || near.has(id)
+  const near = !onPath && focus ? layout.adj.get(focus) ?? new Set<string>() : null
+  const isOn = (id: string) => (onPath ? onPath.has(id) : !near || id === focus || near.has(id))
   const lc = linkColor ?? (() => 'var(--rule-strong)')
 
   return (
@@ -117,14 +135,16 @@ export function NetworkGraph({
         height={height}
         role="img"
         aria-label={`Network of ${nodes.length} entities and ${links.length} relations. Drag to pan; hold Ctrl or ⌘ and scroll to zoom.`}
-        style={{ touchAction: 'none', cursor: 'grab' }}
+        style={{ touchAction: 'pan-y', cursor: 'grab' }}
       >
         <g transform={transform.toString()}>
           <g>
             {layout.sl.map((l, i) => {
               const s = l.source as SimNode
               const t = l.target as SimNode
-              const on = !near || ((s.id === focus || t.id === focus) && true)
+              const inPath = !!onPath && pathEdges.has(`${s.id}\u0000${t.id}`)
+              const on = onPath ? inPath : !near || s.id === focus || t.id === focus
+              const dashed = l.dashed || dashedTypes?.includes(l.type ?? '')
               return (
                 <line
                   key={i}
@@ -133,9 +153,9 @@ export function NetworkGraph({
                   x2={px(t.x!)}
                   y2={py(t.y!)}
                   stroke={on && near ? 'var(--ink)' : lc(l.type)}
-                  strokeWidth={on && near ? 1.5 : 1}
+                  strokeWidth={inPath ? 3 : on && near ? 1.5 : l.dashed ? 1.5 : 1}
                   strokeOpacity={on ? 0.9 : 0.12}
-                  strokeDasharray={dashedTypes?.includes(l.type ?? '') ? '3 3' : undefined}
+                  strokeDasharray={dashed ? (inPath ? '6 4' : '3 3') : undefined}
                 />
               )
             })}
@@ -144,7 +164,7 @@ export function NetworkGraph({
             const st = entityStyle(n.type)
             const r = n.size ?? (n.emph ? 9 : 5)
             const on = isOn(n.id)
-            const showLabel = n.emph || showAllLabels || n.id === focus || (near && near.has(n.id) && (near.size ?? 0) <= 16)
+            const showLabel = n.emph || showAllLabels || n.id === focus || (onPath && onPath.has(n.id)) || (near && near.has(n.id) && (near.size ?? 0) <= 16)
             return (
               <g
                 key={n.id}

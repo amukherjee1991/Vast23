@@ -5,23 +5,27 @@ import numpy as np
 import pandas as pd
 
 from .common import N_MONTHS, month_labels
-from .successors import STOP_BEFORE, detect_all
-from .temporal import classify, pair_features
+from .successors import STOP_LAST, assign_verdicts, detect_all
+from .temporal import PATTERN_ORDER, classify, pair_features
+
+LABELS = month_labels()
 
 
 def usable_links(b: pd.DataFrame) -> pd.DataFrame:
-    """Links that add information: not an exact graph copy, not repeated, inside the window."""
-    return b[~b._exact & ~b._intra_dup & ~b._out_of_range].copy()
+    """Links that add information: distinct, not an exact graph copy, inside the window."""
+    return b[~b._exact.astype(bool) & ~b._intra_dup & ~b._out_of_range].copy()
 
 
-def augment(e: pd.DataFrame, frames: dict[str, pd.DataFrame], names: list[str]) -> pd.DataFrame:
-    add = pd.concat([usable_links(frames[n]).assign(bundle=n) for n in names], ignore_index=True)
-    add = add.drop_duplicates(["source", "target", "hscode", "arrivaldate"])
-    cols = ["source", "target", "arrivaldate", "hscode", "weightkg", "volumeteu", "m", "hs4", "fish"]
-    add = add[cols + ["bundle"]].copy()
+def augment(frames: dict[str, pd.DataFrame], names: list[str]) -> pd.DataFrame:
+    cols = ["source", "target", "arrivaldate", "hscode", "weightkg", "volumeteu", "valueofgoods_omu",
+            "m", "hs4", "fish"]
+    if not names:
+        return pd.DataFrame(columns=cols + ["bundle"])
+    add = pd.concat([usable_links(frames[n])[cols].assign(bundle=n) for n in names], ignore_index=True)
+    add = add.drop_duplicates(["source", "target", "hscode", "arrivaldate", "weightkg"])
     add["m"] = add["m"].astype(np.int16)
     add["weightkg"] = add["weightkg"].astype(float)
-    return add
+    return add.sort_values(["arrivaldate", "source", "target", "hscode"]).reset_index(drop=True)
 
 
 def _pair_shift(keys, M, add) -> dict:
@@ -35,81 +39,105 @@ def _pair_shift(keys, M, add) -> dict:
     after = classify(pair_features(M2))
     ct = pd.crosstab(pd.Series(before, name="before"), pd.Series(after, name="after"))
     trans = [{"from": a, "to": b, "pairs": int(ct.loc[a, b])}
-             for a in ct.index for b in ct.columns if ct.loc[a, b] > 0]
-    return {"pairs_touched": int(len(touched)), "pairs_new": int(len(set(zip(add.source[~known], add.target[~known])))),
-            "category_changed": int((before != after).sum()), "transitions": trans}
+             for a in PATTERN_ORDER if a in ct.index for b in PATTERN_ORDER if b in ct.columns and ct.loc[a, b] > 0]
+    changed = before != after
+    examples = []
+    # examples: pairs whose category changed, busiest first
+    order = np.argsort(-M[touched].sum(1))
+    for j in order:
+        if changed[j] and len(examples) < 12:
+            k = touched[j]
+            examples.append({"source": keys.source.iat[k], "target": keys.target.iat[k],
+                             "before": before[j], "after": after[j],
+                             "monthly_before": M[k].tolist(), "monthly_after": M2[j].tolist()})
+    new_pairs = add.loc[~known, ["source", "target"]].drop_duplicates()
+    return {"pairs_touched": int(len(touched)), "pairs_new": int(len(new_pairs)),
+            "category_changed": int(changed.sum()), "transitions": trans, "examples": examples}
 
 
-def impact(e: pd.DataFrame, frames: dict, bundle_eval: dict, keys, M, base_succ: pd.DataFrame) -> dict:
-    reliable = [r["bundle"] for r in bundle_eval["bundles"] if r["verdict"] == "reliable"]
-    add = augment(e, frames, reliable)
-    e2 = pd.concat([e, add.drop(columns="bundle")], ignore_index=True)
+def impact(e: pd.DataFrame, frames: dict, bundle_eval: dict, keys, M, base: pd.DataFrame,
+           add: pd.DataFrame) -> dict:
+    reliable = [r["bundle"] for r in bundle_eval["bundles"] if r["verdict"] == "Reliable"]
+    e2 = pd.concat([e, add.drop(columns=["bundle"])], ignore_index=True)
 
-    # stoppers revived: companies whose last month moves past the stop threshold
+    # companies that looked stopped but have reliable predicted links after their last real month
     revived = []
     for role, col in (("shipper", "source"), ("receiver", "target")):
-        last0 = e.groupby(col)["m"].max()
-        n0 = e.groupby(col).size()
-        last1 = add.groupby(col)["m"].max()
-        j = pd.concat([last0.rename("l0"), last1.rename("l1"), n0.rename("n")], axis=1).dropna()
-        j = j[(j.l0 <= STOP_BEFORE) & (j.l1 > STOP_BEFORE) & (j.n >= 10)]
-        for cid, r in j.iterrows():
-            revived.append({"id": cid, "role": role, "last_month_before": int(r.l0),
-                            "last_month_after": int(r.l1), "shipments": int(r.n)})
+        g = e.groupby(col)["m"]
+        j = pd.concat([g.max().rename("l0"), g.size().rename("n"),
+                       add.groupby(col)["m"].max().rename("l1")], axis=1).dropna()
+        j = j[(j.l0 <= STOP_LAST) & (j.l1 > j.l0) & (j.n >= 10)]
+        for cid, r in j.sort_index().iterrows():
+            revived.append({"id": cid, "role": role, "last_month_before": LABELS[int(r.l0)],
+                            "last_month_after": LABELS[int(r.l1)], "shipments": int(r.n)})
 
-    succ2, info2 = detect_all(e2)
-    k0 = {(r.role, r.predecessor, r.successor): r for r in base_succ.itertuples()}
-    k1 = {(r.role, r.predecessor, r.successor): r for r in succ2.itertuples()}
-    gained = [k for k in k1 if k not in k0]
-    lost = [k for k in k0 if k not in k1]
-    conf_change = [{"role": k[0], "predecessor": k[1], "successor": k[2],
-                    "before": k0[k].confidence, "after": k1[k].confidence,
-                    "score_before": round(k0[k].score, 4), "score_after": round(k1[k].score, 4)}
-                   for k in k0 if k in k1 and k0[k].confidence != k1[k].confidence]
-
-    def rows(ks, src, n=25):
-        ks = sorted(ks, key=lambda k: -src[k].score)[:n]
-        return [{"role": k[0], "predecessor": k[1], "successor": k[2], "score": round(src[k].score, 4),
-                 "confidence": src[k].confidence} for k in ks]
-
+    after, _ = detect_all(e2)
+    after = assign_verdicts(after, None)
+    kb = {(r.role, r.predecessor, r.successor): r for r in base.itertuples()}
+    ka = {(r.role, r.predecessor, r.successor): r for r in after.itertuples()}
+    top = [k for k in kb if kb[k].verdict in ("Suspect", "Possible")]
+    status = []
+    for k in top:
+        a = ka.get(k)
+        status.append({"role": k[0], "predecessor": k[1], "successor": k[2],
+                       "verdict_before": kb[k].verdict, "score_before": round(float(kb[k].score), 4),
+                       "verdict_after": a.verdict if a is not None else "Not detected",
+                       "score_after": round(float(a.score), 4) if a is not None else None})
+    gained = sorted([k for k in ka if k not in kb and ka[k].verdict in ("Suspect", "Possible")],
+                    key=lambda k: -ka[k].score)
     m = e["m"].to_numpy()
     base_month = np.bincount(m, minlength=N_MONTHS)[72:]
     add_month = np.bincount(add["m"].to_numpy(), minlength=N_MONTHS)[72:N_MONTHS]
-    fish34 = e.loc[e.m >= 72, "fish"].mean()
-    fish34b = pd.concat([e.loc[e.m >= 72, "fish"], add["fish"]]).mean()
+    fish34 = float(e.loc[e.m >= 72, "fish"].mean())
+    fish34b = float(pd.concat([e.loc[e.m >= 72, "fish"], add["fish"]]).mean())
 
-    # per-bundle what-if (all bundles, even unreliable ones)
     per_bundle = []
     for r in bundle_eval["bundles"]:
         b = frames[r["bundle"]]
         u = usable_links(b)
-        tgt_top = b.target.value_counts().head(1)
         per_bundle.append({
             "bundle": r["bundle"], "verdict": r["verdict"], "links": int(len(b)), "usable_links": int(len(u)),
-            "top_target": tgt_top.index[0], "top_target_links": int(tgt_top.iloc[0]),
             "fish_share_usable": float(u.fish.mean()) if len(u) else None,
+            "top_target": b.target.value_counts().index[0], "top_target_links": int(b.target.value_counts().iloc[0]),
         })
-
-    top_gain = add.groupby("source").size().sort_values(ascending=False).head(15)
+    # sensitivity: also add the Questionable bundles
+    quest = [r["bundle"] for r in bundle_eval["bundles"] if r["verdict"] == "Questionable"]
+    addq = augment(frames, reliable + quest)
+    after_q, _ = detect_all(pd.concat([e, addq.drop(columns=["bundle"])], ignore_index=True))
+    after_q = assign_verdicts(after_q, None)
+    kq = {(r.role, r.predecessor, r.successor): r.verdict for r in after_q.itertuples()}
+    sensitivity = {
+        "bundles": reliable + quest, "links_added": int(len(addq)),
+        "flagged_pairs_changed": [{"role": k[0], "predecessor": k[1], "successor": k[2],
+                                   "verdict_before": kb[k].verdict, "verdict_after": kq.get(k, "Not detected")}
+                                  for k in top if kq.get(k, "Not detected") != kb[k].verdict],
+        "verdict_counts": {k: int(v) for k, v in after_q.verdict.value_counts().items()},
+    }
+    hubs = add.groupby("target").size().sort_values(ascending=False).head(10)
+    top_gain = add.groupby("source").size().sort_values(ascending=False).head(10)
     return {
         "reliable_bundles": reliable,
         "links_added": int(len(add)),
-        "links_added_by_bundle": {k: int(v) for k, v in add.bundle.value_counts().items()},
-        "links_added_fish_share": float(add.fish.mean()),
+        "links_added_by_bundle": {k: int(v) for k, v in add.bundle.value_counts().sort_index().items()},
+        "links_added_fish_share": float(add.fish.mean()) if len(add) else None,
+        "links_added_new_pairs": int(len(set(zip(add.source, add.target)) - set(zip(e.source, e.target)))),
         "pair_patterns": _pair_shift(keys, M, add),
-        "months_2034": month_labels()[72:],
+        "months_2034": LABELS[72:],
         "monthly_2034_before": base_month.tolist(),
         "monthly_2034_added": add_month.tolist(),
-        "fish_share_2034_before": float(fish34),
-        "fish_share_2034_after": float(fish34b),
-        "revived_stoppers": sorted(revived, key=lambda x: -x["shipments"]),
-        "successor_pairs_before": int(len(base_succ)),
-        "successor_pairs_after": int(len(succ2)),
-        "successor_confidence_before": {k: int(v) for k, v in base_succ.confidence.value_counts().items()},
-        "successor_confidence_after": {k: int(v) for k, v in succ2.confidence.value_counts().items()},
-        "successor_pairs_gained": rows(gained, k1),
-        "successor_pairs_lost": rows(lost, k0),
-        "successor_confidence_changes": conf_change,
-        "top_shippers_gaining_links": [{"id": k, "links": int(v)} for k, v in top_gain.items()],
+        "fish_share_2034_before": fish34,
+        "fish_share_2034_after": fish34b,
+        "revived_stoppers": revived,
+        "successor_pairs_before": int(len(base)),
+        "successor_pairs_after": int(len(after)),
+        "successor_verdicts_before": {k: int(v) for k, v in base.verdict.value_counts().items()},
+        "successor_verdicts_after_redetect": {k: int(v) for k, v in after.verdict.value_counts().items()},
+        "flagged_pair_status_after": status,
+        "new_flagged_pairs_after": [{"role": k[0], "predecessor": k[1], "successor": k[2],
+                                     "verdict": ka[k].verdict, "score": round(float(ka[k].score), 4)}
+                                    for k in gained[:20]],
+        "top_targets_of_added_links": [{"id": k, "links": int(v)} for k, v in hubs.items()],
+        "top_sources_of_added_links": [{"id": k, "links": int(v)} for k, v in top_gain.items()],
         "per_bundle_whatif": per_bundle,
-    }, succ2
+        "sensitivity_with_questionable": sensitivity,
+    }

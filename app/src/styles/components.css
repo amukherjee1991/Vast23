@@ -230,7 +230,6 @@
   transition: opacity 150ms var(--ease-out), transform 150ms var(--ease-out);
   pointer-events: none;
 }
-.halyard__stop[aria-current] .halyard__label,
 .halyard__stop:focus-visible .halyard__label {
   opacity: 1;
   transform: none;
@@ -240,6 +239,17 @@
     opacity: 1;
     transform: none;
   }
+}
+.halyard__stop[aria-current]::before {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  translate: 0 -50%;
+  border-radius: 50%;
+  background: var(--flag-red);
 }
 @keyframes hoist {
   from {
@@ -334,9 +344,21 @@
 .q__evidence > * {
   grid-column: span 12;
 }
-@media (min-width: 1100px) {
-  .q__evidence > .fig:not(.fig--wide) {
-    grid-column: span 6;
+/* Wide screens: claims on the left, their evidence alongside on the right. */
+@media (min-width: 1280px) {
+  .q {
+    grid-template-columns: minmax(0, 60ch) minmax(0, 1fr);
+    column-gap: var(--s-7);
+    align-items: start;
+  }
+  .q__head {
+    grid-column: 1 / -1;
+  }
+  .q__answer {
+    grid-column: 1;
+  }
+  .q__evidence {
+    grid-column: 2;
   }
 }
 @media (max-width: 720px) {
@@ -396,9 +418,13 @@ code {
   cursor: pointer;
   transition: background-size var(--t-ui) var(--ease-out);
 }
-.claim[aria-pressed="true"],
-.claim:hover {
+.claim[aria-pressed="true"] {
   background-size: 100% 100%;
+}
+@media (hover: hover) and (pointer: fine) {
+  .claim:hover {
+    background-size: 100% 100%;
+  }
 }
 
 /* ───────── Figure ───────── */

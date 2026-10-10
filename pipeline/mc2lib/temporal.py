@@ -40,9 +40,12 @@ def timeline_overview(e: pd.DataFrame) -> dict:
         "headings": [{"hs4": h, "label": FISH_HEADINGS[h], "counts": [int(v) for v in mix[h]]}
                      for h in mix.columns],
     }
-    # top non-fish chapters
+    # top chapters (chapter 03 is restored; other 01-09 chapters cannot be told apart from 10-99)
     ch = e["hs4"].str[:2]
     top_ch = ch.value_counts().head(15)
+    # seasonality: mean shipments per calendar month relative to the overall monthly mean
+    cal = np.array([tot[k::12].mean() for k in range(12)])
+    fcal = np.array([fish[k::12].mean() for k in range(12)])
 
     return {
         "months": month_labels(),
@@ -60,6 +63,10 @@ def timeline_overview(e: pd.DataFrame) -> dict:
         "fish_shipper_exits": np.bincount(flast.to_numpy(), minlength=N_MONTHS).tolist(),
         "fish_mix_by_year": fish_mix,
         "top_hs_chapters": [{"chapter": c, "shipments": int(v)} for c, v in top_ch.items()],
+        "calendar_profile": {"months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
+                                        "Oct", "Nov", "Dec"],
+                             "all_index": (cal / cal.mean()).round(4).tolist(),
+                             "fish_index": (fcal / fcal.mean()).round(4).tolist()},
         "notes": "Entrants/exits at the first and last months are censored by the data window "
                  "(2028-01..2034-12) and should be visually de-emphasised.",
     }
@@ -139,10 +146,20 @@ def companies_top(e: pd.DataFrame, ct: pd.DataFrame, n_total=100, n_fish=50) -> 
             "top_partners": [{"id": k, "shipments": int(v)} for k, v in tp.items()],
             "top_hs4": [{"hs4": k, "shipments": int(v)} for k, v in th.items()],
         })
+    bins = [1, 2, 4, 7, 13, 25, 37, 49, 61, 73, 85]
+    life = {"bins": bins, "bin_labels": ["1", "2-3", "4-6", "7-12", "13-24", "25-36", "37-48", "49-60",
+                                         "61-72", "73-84"]}
+    for role in ("shipper", "receiver"):
+        sub = ct[ct.role == role]
+        life[role] = np.histogram(sub.span, bins=bins)[0].tolist()
+        life[f"{role}_fish_majority"] = np.histogram(sub[sub.fish_share >= 0.5].span, bins=bins)[0].tolist()
+        life[f"{role}_median_span"] = float(sub.span.median())
+        life[f"{role}_single_month_share"] = float((sub.span == 1).mean())
     lc = ct.groupby(["role", "lifecycle"]).size().unstack(fill_value=0)
     lc_fish = ct[(ct.fish_share >= 0.5)].groupby(["role", "lifecycle"]).size().unstack(fill_value=0)
     return {
         "months": month_labels(),
+        "lifespan_histogram": life,
         "lifecycle_counts": {role: {k: int(v) for k, v in lc.loc[role].items()} for role in lc.index},
         "lifecycle_counts_fish_majority": {role: {k: int(v) for k, v in lc_fish.loc[role].items()}
                                            for role in lc_fish.index},

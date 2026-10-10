@@ -47,6 +47,14 @@ def hs_heading(hs: pd.Series) -> pd.Series:
     return head.where(~is_ch03, "0" + hs.str[:3])
 
 
+def normalize_bundle_hs(hs: pd.Series) -> pd.Series:
+    """Bundles store HS codes as plain integers, so chapter 01-09 codes have 5 digits
+    ("30729"). The graph stores the same codes as 6 digits with a trailing zero ("307290");
+    appending "0" to 5-digit bundle codes matches graph codes 100% of the time."""
+    hs = hs.astype(str)
+    return hs.where(hs.str.len() != 5, hs + "0")
+
+
 def is_fish(hs: pd.Series) -> np.ndarray:
     return hs_heading(hs).isin(FISH_HEADINGS.keys()).to_numpy()
 
@@ -69,7 +77,8 @@ def load_bundle(name: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     for c in ["weightkg", "volumeteu", "valueofgoods_omu"]:
         if c not in links:
             links[c] = np.nan
-    links["hscode"] = links["hscode"].astype(str)
+    links["hscode_5digit"] = links["hscode"].astype(str).str.len() == 5
+    links["hscode"] = normalize_bundle_hs(links["hscode"])
     links["source"] = links["source"].astype(str)
     links["target"] = links["target"].astype(str)
     links["arrivaldate"] = pd.to_datetime(links["arrivaldate"])

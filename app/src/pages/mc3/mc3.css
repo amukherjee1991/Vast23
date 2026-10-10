@@ -1,0 +1,513 @@
+/* MC3 page. Only tokens from tokens.css; motion is transform/opacity with
+   ease-out tokens, and every hover is gated behind a fine pointer. */
+
+.mc3 .band__title {
+  max-width: 22ch;
+}
+
+/* ───────── Lead strip in the yellow band (text on yellow stays ink) ───────── */
+.mc3-leads {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 0;
+}
+.mc3-leads > li {
+  padding: 0;
+}
+.mc3-lead {
+  display: grid;
+  gap: var(--s-3);
+  align-content: start;
+  width: 100%;
+  height: 100%;
+  padding: var(--s-5);
+  text-align: left;
+  background: var(--cloth);
+  color: var(--ink);
+  border: 0;
+  cursor: pointer;
+  transition: background-color var(--t-ui) var(--ease-out);
+}
+.mc3-lead:active {
+  background: var(--ground);
+}
+.mc3-lead__name {
+  display: block;
+  font-weight: 600;
+  font-size: var(--fs-small);
+  color: var(--ink-2);
+  font-variation-settings: "wdth" var(--w-text);
+}
+.mc3-lead__go {
+  font-size: var(--fs-small);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: var(--line);
+  text-underline-offset: 0.18em;
+}
+@media (hover: hover) and (pointer: fine) {
+  .mc3-lead:hover {
+    background: var(--ground);
+  }
+}
+
+/* ───────── Canvas scatter ───────── */
+.cplot {
+  position: relative;
+}
+.cplot__canvas,
+.cplot__svg {
+  position: absolute;
+  inset: 0;
+}
+.cplot__canvas {
+  pointer-events: none;
+}
+.cplot__label {
+  paint-order: stroke;
+  stroke: var(--cloth);
+  stroke-width: 3px;
+}
+
+/* ───────── Moving mark (giant component) ───────── */
+.mc3-move {
+  transition: transform var(--t-ui) var(--ease-out);
+}
+
+/* ───────── Anomaly detail ───────── */
+.mc3-select {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
+.mc3-detail {
+  display: grid;
+  gap: var(--s-4);
+}
+.mc3-flags {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--s-1);
+  display: grid;
+  gap: var(--s-1);
+  font-size: var(--fs-small);
+  color: var(--ink-2);
+}
+.mc3-flag strong {
+  color: var(--ink);
+  margin-right: 4px;
+}
+.mc3-reasons {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--s-1);
+  display: grid;
+  gap: var(--s-3);
+}
+.mc3-reasons li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--s-3);
+  font-size: var(--fs-small);
+}
+.mc3-reasons__label {
+  color: var(--ink);
+  font-weight: 600;
+}
+.mc3-reasons__val {
+  color: var(--ink);
+  font-weight: 700;
+  text-align: right;
+}
+.mc3-reasons__val span {
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.mc3-reasons__track {
+  height: 6px;
+  background: var(--ground);
+  align-self: center;
+  overflow: hidden;
+}
+.mc3-reasons__bar {
+  display: block;
+  height: 100%;
+  background: var(--series-1);
+  transform-origin: left center;
+  transition: transform var(--t-ui) var(--ease-out);
+}
+.mc3-reasons__z {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  text-align: right;
+}
+
+/* ───────── Cluster list (Q2) ───────── */
+.mc3-clist,
+.mc3-coh {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 420px;
+  overflow: auto;
+  border-top: 1px solid var(--rule);
+}
+.mc3-clist__row,
+.mc3-coh__row {
+  width: 100%;
+  display: grid;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 6px var(--s-2);
+  min-height: 36px;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  font-size: var(--fs-small);
+  cursor: pointer;
+  transition: background-color var(--t-ui) var(--ease-out);
+}
+.mc3-clist__row {
+  grid-template-columns: 56px minmax(0, 1fr) 48px 96px;
+}
+.mc3-clist__row[aria-pressed="true"],
+.mc3-coh__row[aria-pressed="true"] {
+  background: var(--ground);
+  box-shadow: inset 0 0 0 var(--line) var(--ink);
+}
+@media (hover: hover) and (pointer: fine) {
+  .mc3-clist__row:hover,
+  .mc3-coh__row:hover {
+    background: var(--ground);
+  }
+}
+@media (pointer: coarse) {
+  .mc3-clist__row,
+  .mc3-coh__row,
+  .mc3-inv__row {
+    min-height: 44px;
+  }
+}
+.mc3-clist__id {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  font-variation-settings: "wdth" var(--w-data);
+}
+.mc3-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--ink);
+  flex: none;
+}
+.mc3-clist__terms {
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mc3-clist__size {
+  text-align: right;
+  color: var(--ink-3);
+}
+.mc3-clist__fish {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
+  text-align: right;
+}
+.mc3-clist__track {
+  height: 6px;
+  background: var(--ground);
+  overflow: hidden;
+}
+.mc3-clist__track span {
+  display: block;
+  height: 100%;
+  background: var(--series-3);
+  transform-origin: left center;
+}
+
+/* ───────── Cohesion bullets (Q3) ───────── */
+.mc3-coh__row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
+}
+.mc3-coh__name {
+  font-weight: 800;
+  font-variation-settings: "wdth" var(--w-data);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mc3-coh__terms {
+  font-weight: 500;
+  color: var(--ink-2);
+  font-variation-settings: "wdth" var(--w-text);
+}
+.mc3-coh__bars {
+  display: grid;
+  gap: 3px;
+}
+.mc3-bullet {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 6px;
+}
+.mc3-bullet__track {
+  position: relative;
+  height: 6px;
+  background: var(--ground);
+}
+.mc3-bullet__bar {
+  display: block;
+  height: 100%;
+}
+.mc3-bullet__tick {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 1.5px;
+  background: var(--ink);
+}
+.mc3-bullet__val {
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
+  text-align: right;
+}
+@media (max-width: 560px) {
+  .mc3-coh__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .mc3-coh__bars {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .mc3-clist__row {
+    grid-template-columns: 52px minmax(0, 1fr) 44px;
+  }
+  .mc3-clist__fish {
+    grid-column: 2 / -1;
+  }
+}
+
+/* ───────── Investigation (Q4) ───────── */
+.mc3-invwrap {
+  container-type: inline-size;
+}
+.mc3-inv {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-5);
+  align-items: start;
+}
+.mc3-inv__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 380px;
+  overflow: auto;
+  border-top: 1px solid var(--rule);
+}
+@container (min-width: 820px) {
+  .mc3-inv {
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  }
+  .mc3-inv__list {
+    max-height: 860px;
+  }
+}
+.mc3-inv__row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: var(--s-2);
+  align-items: center;
+  padding: var(--s-2);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--t-ui) var(--ease-out);
+}
+.mc3-inv__row[aria-pressed="true"] {
+  background: var(--ground);
+  box-shadow: inset 0 0 0 var(--line) var(--ink);
+}
+@media (hover: hover) and (pointer: fine) {
+  .mc3-inv__row:hover {
+    background: var(--ground);
+  }
+}
+.mc3-inv__rank {
+  font-weight: 800;
+  font-size: var(--fs-small);
+  color: var(--ink-3);
+  font-variation-settings: "wdth" var(--w-data);
+}
+.mc3-inv__main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.mc3-inv__id {
+  font-weight: 800;
+  font-size: var(--fs-small);
+  font-variation-settings: "wdth" var(--w-data);
+}
+.mc3-inv__co {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mc3-score {
+  display: block;
+  width: 100%;
+  height: 7px;
+  margin-top: 3px;
+}
+.mc3-inv__verdict {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+.mc3-inv__verdict .verdict__label {
+  font-size: var(--fs-micro);
+}
+.mc3-inv__verdict .pennants__label {
+  display: none;
+}
+.mc3-inv__detail {
+  display: grid;
+  gap: var(--s-4);
+  min-width: 0;
+}
+.mc3-inv__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: start;
+  gap: var(--s-4);
+}
+.mc3-inv__title {
+  margin: 0;
+  font-size: var(--fs-h3);
+  font-weight: 850;
+  font-variation-settings: "wdth" var(--w-data);
+}
+.mc3-inv__title span {
+  font-weight: 600;
+  font-size: var(--fs-small);
+  color: var(--ink-3);
+}
+.mc3-inv__sub {
+  margin-top: var(--s-1);
+  font-size: var(--fs-small);
+  color: var(--ink-2);
+}
+.mc3-inv__facts {
+  gap: var(--s-2) var(--s-5);
+}
+.mc3-inv__reasons {
+  margin: 0;
+  padding-left: 1.1em;
+  font-size: var(--fs-small);
+  color: var(--ink);
+  display: grid;
+  gap: var(--s-1);
+}
+.mc3-inv__legend {
+  padding: 0;
+}
+.mc3-inv__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--s-5);
+  font-size: var(--fs-small);
+  color: var(--ink-2);
+}
+.mc3-inv__cols h6 {
+  margin: 0 0 var(--s-2);
+  font-size: var(--fs-small);
+  font-weight: 800;
+  color: var(--ink);
+}
+.mc3-inv__cols ul {
+  margin: 0;
+  padding-left: 1.1em;
+  display: grid;
+  gap: var(--s-1);
+}
+.mc3-sim {
+  list-style: none;
+  padding-left: 0 !important;
+}
+.mc3-sim li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  align-items: center;
+}
+.mc3-link {
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  padding: 0;
+  min-height: 28px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: var(--line);
+  text-underline-offset: 0.18em;
+}
+@media (pointer: coarse) {
+  .mc3-link {
+    min-height: 44px;
+  }
+}
+.mc3-note {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+@media (max-width: 900px) {
+  .mc3-inv__cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ───────── Page-level adjustments ───────── */
+.mc3 .claim {
+  display: inline;
+  text-align: left;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.mc3 .fig__cap,
+.mc3 .fig__title {
+  overflow-wrap: anywhere;
+}
+.mc3-graph {
+  overflow: hidden;
+  border-top: 1px solid var(--rule);
+}
+.mc3-coh__conf {
+  width: 128px;
+}
+@media (max-width: 560px) {
+  .mc3-coh__conf {
+    width: auto;
+  }
+}
