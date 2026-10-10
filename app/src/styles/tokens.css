@@ -1,0 +1,90 @@
+/* Signal Hoist — design tokens.
+   World: International Code of Signals. Flat flag cloth, one even ink line,
+   no gradients, no glow. Categorical order validated with the dataviz
+   validator on #f5f5f1 (blue, yellow, red, green, violet: all checks pass;
+   yellow < 3:1 so yellow marks always carry an ink outline or a label). */
+
+:root {
+  color-scheme: light;
+
+  /* Cloth & ink */
+  --ground: #f5f5f1;          /* sail-white page */
+  --cloth: #ffffff;           /* flag white, raised panels */
+  --ink: #111318;             /* primary text, the one line */
+  --ink-2: #3b3f4a;           /* secondary text  (9.6:1) */
+  --ink-3: #5f6571;           /* muted text      (5.5:1) */
+  --rule: #d6d7cf;            /* hairline rules, grid */
+  --rule-strong: #b9bab0;
+
+  /* Signal cloth (flag fields at page scale) */
+  --flag-red: #d42a2a;
+  --flag-blue: #1747c4;
+  --flag-yellow: #ffc61a;
+  --flag-black: #111318;
+  --flag-white: #ffffff;
+
+  /* Categorical marks — fixed order, never cycled */
+  --series-1: #1747c4;  /* blue   */
+  --series-2: #e3a008;  /* yellow (outline it) */
+  --series-3: #d42a2a;  /* red    */
+  --series-4: #0e8a6e;  /* sea green */
+  --series-5: #6b4fd8;  /* violet */
+  --series-other: #9a9d96;
+
+  /* Sequential (blue, light → dark) */
+  --seq-100: #dbe4fa;
+  --seq-200: #b3c6f2;
+  --seq-300: #87a5e8;
+  --seq-400: #5a82dc;
+  --seq-500: #2f5fcf;
+  --seq-600: #1747c4;
+  --seq-700: #0f3392;
+  --seq-800: #0a2366;
+
+  /* Verdict (status) — always paired with a flag + label */
+  --verdict-suspect: #d42a2a;
+  --verdict-possible: #e3a008;
+  --verdict-insufficient: #5f6571;
+  --verdict-unlikely: #1747c4;
+
+  /* Type: Archivo, width axis carries the hierarchy */
+  --font: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --w-display: 125;
+  --w-text: 100;
+  --w-data: 75;
+
+  --fs-hero: clamp(2.75rem, 1.2rem + 6.2vw, 6rem);
+  --fs-h1: clamp(2.25rem, 1.4rem + 3.4vw, 4rem);
+  --fs-h2: clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem);
+  --fs-h3: 1.25rem;
+  --fs-body: 1.0625rem;
+  --fs-small: 0.875rem;
+  --fs-micro: 0.75rem;
+
+  /* Space: one rhythm, base 4 */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --s-9: 96px;
+  --s-10: 144px;
+
+  --line: 1.5px;
+  --radius: 2px;              /* flags are cut cloth, nearly square */
+  --measure: 68ch;
+  --rail: 88px;               /* halyard rail width */
+
+  /* Motion (Emil): strong ease-out for UI, hoist curve for the one authored moment */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-hoist: cubic-bezier(0.32, 0.72, 0, 1);
+  --t-press: 140ms;
+  --t-ui: 200ms;
+  --t-hoist: 640ms;
+
+  --shadow-lift: 0 1px 2px rgb(17 19 24 / 0.08), 0 8px 24px -8px rgb(17 19 24 / 0.18);
+}
