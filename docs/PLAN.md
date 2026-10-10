@@ -21,7 +21,7 @@ This project is an interactive response to the [IEEE VAST Challenge 2023](https:
 
 - [x] Repo created and pushed. Data fetch script written. MC2 graph converted to Parquet (`pipeline/mc2_to_parquet.py`)
 - [x] `PRODUCT.md`
-- [x] Design tokens and a categorical palette checked with the dataviz validator: blue, yellow, red, green, violet. Yellow marks always get an outline
+- [x] Design tokens and a signal-cloth palette (blue, yellow, red validated with the dataviz validator; black and white always outlined or dashed). Yellow marks always get an outline
 - [x] UI kit: `Flag`, `VerdictTag`, `ConfidencePennants`, `Figure` (with a table view), `Tooltip`, `Halyard` section nav, `Question`, `ChallengeBand`
 - [x] Home page: the verdict hoist, the three challenge routes, and the signal code
 - [x] GitHub issue #1 (VAST submission document)
