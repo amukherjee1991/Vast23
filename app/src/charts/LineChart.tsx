@@ -110,7 +110,7 @@ export function LineChart({
               {yLabel}
             </text>
           )}
-          <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--ink)" strokeWidth={1} />
+          <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--rule-strong)" strokeWidth={1} />
           {xTicks.map((t) => (
             <text key={+t} x={xs(t as never)} y={ih + 18} textAnchor="middle">
               {fx(isDate ? new Date(+t) : +t)}
@@ -118,7 +118,7 @@ export function LineChart({
           ))}
           {markers?.map((mk) => (
             <g key={mk.label} transform={`translate(${xs(mk.x as never)},0)`}>
-              <line y1={0} y2={ih} stroke="var(--ink)" strokeDasharray="3 3" />
+              <line y1={0} y2={ih} stroke="var(--ink-3)" strokeDasharray="3 3" />
               <text y={-4} textAnchor="middle" className="label-strong">
                 {mk.label}
               </text>
@@ -143,7 +143,7 @@ export function LineChart({
                 </text>
               )
             })}
-          {hoverX !== null && <line x1={xs(hoverX as never)} x2={xs(hoverX as never)} y1={0} y2={ih} stroke="var(--ink)" strokeWidth={1} />}
+          {hoverX !== null && <line x1={xs(hoverX as never)} x2={xs(hoverX as never)} y1={0} y2={ih} stroke="var(--moon)" strokeOpacity={0.6} strokeWidth={1} />}
           <rect className="hit" width={iw} height={ih} onPointerMove={onMove} onPointerLeave={() => (setHoverX(null), tip.hide())} />
         </g>
       </svg>

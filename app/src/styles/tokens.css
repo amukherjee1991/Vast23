@@ -1,68 +1,93 @@
-/* Signal Hoist — design tokens.
-   World: International Code of Signals. Flat flag cloth, one even ink line,
-   no gradients, no glow. Categorical marks use signal cloth only: blue,
-   yellow (gold), red, black, white. Blue/gold/red pass the dataviz validator
-   on #f5f5f1; gold is < 3:1, so gold marks carry an ink outline or a label.
-   Black and white are never colour-alone: fills are ink-outlined, lines dashed. */
+/* Night sea — design tokens.
+   World: the open sea after dark. The page is abyssal water; light lives only
+   in the data (bioluminescent marks, lit routes) and in the signal lamps that
+   carry each verdict. Chrome stays quiet and never glows.
+
+   Categorical marks (validated with the dataviz validator on #07111b, dark,
+   all pairs): teal, amber, rose-red, blue. Teal↔rose sits in the CVD 6–8 band,
+   so categorical marks always carry a second encoding (shape, label, dash).
+   Moonlight white is the neutral, never a series.
+
+   Legacy names (--ground, --cloth, --ink, --rule, --series-*) are kept and
+   remapped so every component reads correctly on the dark ground. */
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  /* Cloth & ink */
-  --ground: #f5f5f1;          /* sail-white page */
-  --cloth: #ffffff;           /* flag white, raised panels */
-  --ink: #111318;             /* primary text, the one line */
-  --ink-2: #3b3f4a;           /* secondary text  (9.6:1) */
-  --ink-3: #5f6571;           /* muted text      (5.5:1) */
-  --rule: #d6d7cf;            /* hairline rules, grid */
-  --rule-strong: #b9bab0;
+  /* Water & moonlight */
+  --abyss: #050c14;           /* deepest: behind stages */
+  --ground: #07111b;          /* page */
+  --cloth: #0c1926;           /* raised surface: tooltips, panels, inputs */
+  --swell: #12243a;           /* hover / selected surface */
+  --ink: #e7eff6;             /* primary text (moonlight)  15.6:1 */
+  --ink-2: #a8bccc;           /* secondary text            9.4:1 */
+  --ink-3: #7d95a8;           /* muted text                5.9:1 on page, 5.2:1 on cloth */
+  --rule: #1a2d40;            /* hairlines, grid */
+  --rule-strong: #2a4157;
+  --moon: #d6e4ff;            /* emphasis line, focus, active marker */
 
-  /* Signal cloth (flag fields at page scale) */
-  --flag-red: #d42a2a;
-  --flag-blue: #1747c4;
+  /* Signal flags keep true cloth colours; edges are drawn in moonlight on the dark */
+  --flag-red: #d6322f;
+  --flag-blue: #2152d1;
   --flag-yellow: #ffc61a;
-  --flag-black: #111318;
-  --flag-white: #ffffff;
+  --flag-black: #0a0f16;
+  --flag-white: #f4f7fb;
+  --flag-edge: #c7d4e4;
 
-  /* Categorical marks — fixed order, never cycled */
-  --series-1: #1747c4;  /* blue   */
-  --series-2: #e3a008;  /* yellow (outline it) */
-  --series-3: #d42a2a;  /* red    */
-  --series-4: #111318;  /* signal black — lines solid, fills outlined */
-  --series-5: #ffffff;  /* signal white — fills only, always ink-outlined */
+  /* Categorical marks — fixed order, never cycled; colour follows the entity */
+  --series-1: #17a99c;  /* teal: bioluminescence */
+  --series-2: #c4880c;  /* amber lamp */
+  --series-3: #e04870;  /* rose-red lamp */
+  --series-4: #5a80f0;  /* blue lamp */
+  --series-5: #e7eff6;  /* moonlight: fills only, always outlined; lines dashed */
   --dash-4: none;
-  --dash-5: 4 3;        /* slot 5 drawn as a line = ink, dashed */
-  --series-other: #9a9d96;
+  --dash-5: 4 3;
+  --series-other: #4f6578;
 
-  /* Sequential (blue, light → dark) */
-  --seq-100: #dbe4fa;
-  --seq-200: #b3c6f2;
-  --seq-300: #87a5e8;
-  --seq-400: #5a82dc;
-  --seq-500: #2f5fcf;
-  --seq-600: #1747c4;
-  --seq-700: #0f3392;
-  --seq-800: #0a2366;
+  /* Lit variants: cores of glowing data drawn with additive blending */
+  --lit-1: #5ff2e2;
+  --lit-2: #ffc95a;
+  --lit-3: #ff7a9a;
+  --lit-4: #9cb6ff;
 
-  /* Verdict (status) — always paired with a flag + label */
-  --verdict-suspect: #d42a2a;
-  --verdict-possible: #e3a008;
-  --verdict-insufficient: #5f6571;
-  --verdict-unlikely: #1747c4;
+  /* Sequential (teal, dark water → lit) */
+  --seq-100: #0d2230;
+  --seq-200: #0f3340;
+  --seq-300: #10494f;
+  --seq-400: #12625f;
+  --seq-500: #157c72;
+  --seq-600: #17a99c;
+  --seq-700: #4fd1c2;
+  --seq-800: #a6f0e6;
 
-  /* Type: Archivo, width axis carries the hierarchy */
+  /* Verdict lamps — always paired with a flag + label */
+  --verdict-suspect: #e04870;
+  --verdict-possible: #c4880c;
+  --verdict-insufficient: #7d95a8;
+  --verdict-unlikely: #5a80f0;
+
+  /* Type: Bodoni Moda tells the story (chart-title lettering), Archivo runs the
+     interface, JetBrains Mono is for measurements only. */
+  --font-display: "Bodoni Moda", "Didot", "Bodoni 72", Georgia, serif;
   --font: "Archivo", ui-sans-serif, system-ui, sans-serif;
-  --w-display: 125;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --w-display: 100;
   --w-text: 100;
-  --w-data: 75;
+  --w-data: 85;
 
-  --fs-hero: clamp(2.5rem, 1rem + 5vw, 5.25rem);
-  --fs-h1: clamp(2.25rem, 1.4rem + 3.4vw, 4rem);
-  --fs-h2: clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem);
+  --fs-hero: clamp(3.25rem, 1.6rem + 5.4vw, 6rem);       /* serif: home title */
+  --fs-h1: clamp(2.75rem, 1.5rem + 4vw, 5.25rem);         /* serif: chapter title */
+  --fs-h2: clamp(2rem, 1.3rem + 2.2vw, 3.25rem);          /* serif: act heading */
+  --fs-kicker: clamp(1.125rem, 1rem + 0.6vw, 1.5rem);     /* serif italic: chapter subtitle */
+  --fs-card: clamp(1.375rem, 1.15rem + 0.7vw, 1.75rem);   /* serif: step / finding title */
+  --fs-figure: clamp(2.5rem, 1.8rem + 2.4vw, 4.25rem);    /* serif lining: static figures */
+  --fs-readout: clamp(2rem, 1.5rem + 1.8vw, 3.25rem);     /* mono: live values */
   --fs-h3: 1.25rem;
-  --fs-body: 1.0625rem;
+  --fs-lede: 1.125rem;
+  --fs-body: 1rem;
   --fs-small: 0.875rem;
-  --fs-micro: 0.75rem;
+  --fs-micro: 0.8125rem;
+  --fs-label: 0.75rem;
 
   /* Space: one rhythm, base 4 */
   --s-1: 4px;
@@ -75,19 +100,42 @@
   --s-8: 64px;
   --s-9: 96px;
   --s-10: 144px;
+  --gutter: clamp(16px, 4vw, 64px);
+  --space-act: clamp(72px, 12vh, 144px);
 
-  --line: 1.5px;
-  --radius: 2px;              /* flags are cut cloth, nearly square */
-  --measure: 68ch;
-  --rail: 88px;               /* halyard rail width */
+  --line: 1px;
+  --radius: 4px;              /* inputs, badges */
+  --radius-md: 8px;           /* tooltip, step cards, panels */
+  --radius-pill: 999px;       /* segmented controls and chips only */
+  --measure: 62ch;
+  --rail: 64px;
+  --hit: 44px;
 
-  /* Motion (Emil): strong ease-out for UI, hoist curve for the one authored moment */
+  /* Depth: glow belongs to data that represents light, never to chrome */
+  --shadow-float: 0 12px 32px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(214 228 255 / 0.08);
+  --blur-float: blur(14px);
+  --halo: 0 1px 3px rgb(5 12 20 / 0.95);
+
+  /* Motion: press 100 / hover 160 / UI 240 / data 700 / story 1200 */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-hoist: cubic-bezier(0.32, 0.72, 0, 1);
-  --t-press: 140ms;
-  --t-ui: 200ms;
+  --t-press: 100ms;
+  --t-ui: 160ms;
+  --t-base: 240ms;
   --t-hoist: 640ms;
+  --t-data: 700ms;
+  --t-story: 1200ms;
 
-  --shadow-lift: 0 1px 2px rgb(17 19 24 / 0.08), 0 8px 24px -8px rgb(17 19 24 / 0.18);
+  --shadow-lift: var(--shadow-float);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-press: 0ms;
+    --t-base: 120ms;
+    --t-hoist: 0ms;
+    --t-data: 0ms;
+    --t-story: 0ms;
+  }
 }

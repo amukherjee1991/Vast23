@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import { Flag } from '../components/Flag'
 import { ConfidencePennants, VerdictKey } from '../components/Signals'
 import { useJson } from '../lib/useJson'
+import { DriftField, type DriftSeed } from '../charts/DriftField'
+import { useMemo } from 'react'
 import { VERDICT_FLAG, toConfidence, toVerdict, type Confidence, type Verdict } from '../lib/signals'
 
 /* summary.json is baked by pipeline/build_summary.py from the three
@@ -15,6 +17,12 @@ interface HoistEntry {
   note: string
   href: string
 }
+/* drift.json (pipeline/stages_build.py): sampled real shipments for the sea of lights. */
+interface Drift {
+  months: number
+  samples: number[][] // [monthIndex, fish 0/1, logWeight]
+}
+
 interface Summary {
   hoist: HoistEntry[]
   challenges: { mc: string; headline: string }[]
@@ -60,15 +68,31 @@ export default function Home() {
   const summary = useJson<Summary>('summary.json')
   const hoist = summary.status === 'ready' ? summary.data.hoist : FALLBACK
   const headlines = summary.status === 'ready' ? summary.data.challenges : []
+  const drift = useJson<Drift>('home/drift.json')
+  const seeds = useMemo<DriftSeed[]>(() => {
+    if (drift.status !== 'ready') return []
+    const { months, samples } = drift.data
+    const maxW = Math.max(...samples.map((d) => d[2]), 1)
+    return samples.map(([m, f, lw]) => ({ t: m / Math.max(1, months - 1), fish: f === 1, w: lw / maxW }))
+  }, [drift])
 
   return (
     <main>
       <section className="hero">
+        <div className="hero__stage" aria-hidden={seeds.length === 0}>
+          {seeds.length > 0 && (
+            <DriftField
+              seeds={seeds}
+              ariaLabel={`${seeds.length} sampled shipments from the Oceanus customs records drifting as lights; amber lights carry fish.`}
+            />
+          )}
+        </div>
         <div className="hero__copy">
           <h1 className="hero__title">Reading the signals of illegal fishing</h1>
           <p className="hero__lede">
             Three knowledge graphs from the IEEE VAST Challenge 2023 cover news, customs records, and corporate filings from the fictional
-            nation of Oceanus. Each verdict on this page is hoisted as a maritime signal flag, next to the interactive evidence that supports it.
+            nation of Oceanus. Each drifting light is a real shipment, and the amber ones carry fish. Each lamp on the mast is a verdict, hoisted
+            beside the evidence that supports it.
           </p>
           <nav className="hero__paths" aria-label="Start with a mini-challenge">
             {CHALLENGES.map((c) => (

@@ -253,7 +253,7 @@ export function Flag({ code, size = 28, label, className, decorative, muted }: F
         <path d={outlinePath} />
       </clipPath>
       <g clipPath={`url(#${clipId})`}>{isPennant ? pennant(code as 'P1' | 'P2' | 'P3') : body(code)}</g>
-      <path d={outlinePath} fill="none" stroke="var(--ink)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+      <path d={outlinePath} fill="none" stroke="var(--flag-edge)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
     </svg>
   )
 }

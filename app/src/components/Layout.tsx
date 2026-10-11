@@ -118,6 +118,7 @@ export function ChallengeBand({
   lede,
   tone,
   aside,
+  stage,
   children,
 }: {
   pennant: 'P1' | 'P2' | 'P3'
@@ -126,8 +127,11 @@ export function ChallengeBand({
   lede: ReactNode
   tone: 'red' | 'blue' | 'yellow'
   aside?: ReactNode
+  /** Full-bleed canvas scene behind the opener (decorative to layout; label it). */
+  stage?: ReactNode
   children?: ReactNode
 }) {
+  const scene = stage ? <div className="band__stage">{stage}</div> : null
   const head = (
     <>
       <div className="band__mark">
@@ -140,6 +144,7 @@ export function ChallengeBand({
   if (!aside)
     return (
       <section className={`band band--${tone}`}>
+        {scene}
         <div className="band__inner">
           {head}
           {children}
@@ -148,6 +153,7 @@ export function ChallengeBand({
     )
   return (
     <section className={`band band--${tone}`}>
+      {scene}
       <div className="band__inner band__inner--split">
         <div className="band__main">
           {head}
