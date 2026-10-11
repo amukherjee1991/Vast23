@@ -183,6 +183,7 @@
   display: grid;
   gap: 4px;
   min-width: 0;
+  text-shadow: 0 0 14px var(--ground), 0 0 4px var(--ground), var(--halo);
 }
 .mast__name {
   font-family: var(--font-display);
@@ -199,6 +200,7 @@
   color: var(--ink-3);
 }
 .mast__cap {
+  text-shadow: 0 0 10px var(--ground), var(--halo);
   margin-top: var(--s-6);
   font-size: var(--fs-micro);
   color: var(--ink-3);

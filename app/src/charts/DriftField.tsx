@@ -34,15 +34,21 @@ export function DriftField({ seeds, ariaLabel }: { seeds: DriftSeed[]; ariaLabel
     // Deterministic pseudo-random so the sea looks the same on every visit.
     let s = 7
     const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647)
-    const parts = seeds.map((d) => ({
-      x: d.t,
-      lane: rnd(),
-      phase: rnd() * Math.PI * 2,
-      speed: 0.006 + rnd() * 0.012,
-      fish: d.fish,
-      r: 0.8 + d.w * 2.4,
-      tw: rnd() * Math.PI * 2,
-    }))
+    // Shipments travel in a few currents (bands) that curve with a long swell.
+    const BANDS = [0.6, 0.68, 0.76, 0.84, 0.92]
+    const parts = seeds.map((d) => {
+      const b = Math.floor(rnd() * BANDS.length)
+      return {
+        x: (d.t + rnd() * 0.08) % 1,
+        lane: BANDS[b] + (rnd() - 0.5) * 0.045,
+        band: b,
+        phase: b * 1.7,
+        speed: 0.014 + rnd() * 0.012 + (d.fish ? 0.004 : 0),
+        fish: d.fish,
+        r: 1 + d.w * 2.6,
+        tw: rnd() * Math.PI * 2,
+      }
+    })
 
     // Pre-render one glow sprite per hue.
     const sprite = (rgb: number[]) => {
@@ -72,18 +78,25 @@ export function DriftField({ seeds, ariaLabel }: { seeds: DriftSeed[]; ariaLabel
 
     function frame(dt: number) {
       g.setTransform(dpr, 0, 0, dpr, 0, 0)
-      g.clearRect(0, 0, w, h)
+      if (dt === 0) g.clearRect(0, 0, w, h)
+      else {
+        // fade the previous frame so each light leaves a short wake
+        g.globalCompositeOperation = 'destination-out'
+        g.globalAlpha = 1
+        g.fillStyle = 'rgba(0,0,0,0.16)'
+        g.fillRect(0, 0, w, h)
+      }
       g.globalCompositeOperation = 'lighter'
       const now = performance.now() / 1000
       for (const p of parts) {
         p.x += p.speed * dt
         if (p.x > 1.05) p.x -= 1.1
         // currents: lanes bend gently with a long swell
-        const y = (0.12 + p.lane * 0.84) * h + Math.sin(p.x * 6 + p.phase) * h * 0.035
+        const y = p.lane * h + Math.sin(p.x * 5.2 + p.phase) * h * 0.03 + Math.sin(p.x * 13 + p.band) * h * 0.008
         const x = p.x * w
         const twinkle = 0.65 + 0.35 * Math.sin(now * 1.3 + p.tw)
-        const R = p.r * (p.fish ? 4.2 : 3.4)
-        g.globalAlpha = (p.fish ? 0.9 : 0.55) * twinkle
+        const R = p.r * (p.fish ? 3.6 : 2.6)
+        g.globalAlpha = (p.fish ? 0.95 : 0.6) * twinkle
         g.drawImage(p.fish ? sAmber : sTeal, x - R, y - R, R * 2, R * 2)
       }
     }

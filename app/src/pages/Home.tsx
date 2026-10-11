@@ -19,7 +19,8 @@ interface HoistEntry {
 }
 /* drift.json (pipeline/stages_build.py): sampled real shipments for the sea of lights. */
 interface Drift {
-  months: number
+  months: [string, string] // first and last month
+  monthly: { all: number[]; fish: number[] }
   samples: number[][] // [monthIndex, fish 0/1, logWeight]
 }
 
@@ -71,9 +72,10 @@ export default function Home() {
   const drift = useJson<Drift>('home/drift.json')
   const seeds = useMemo<DriftSeed[]>(() => {
     if (drift.status !== 'ready') return []
-    const { months, samples } = drift.data
+    const { monthly, samples } = drift.data
+    const n = monthly.all.length
     const maxW = Math.max(...samples.map((d) => d[2]), 1)
-    return samples.map(([m, f, lw]) => ({ t: m / Math.max(1, months - 1), fish: f === 1, w: lw / maxW }))
+    return samples.map(([m, f, lw]) => ({ t: m / Math.max(1, n - 1), fish: f === 1, w: lw / maxW }))
   }, [drift])
 
   return (
