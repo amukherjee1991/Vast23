@@ -46,7 +46,7 @@ export const SERIES = [
   'var(--series-4)',
   'var(--series-5)',
 ] as const
-export const SERIES_HEX = ['#1747c4', '#e3a008', '#d42a2a', '#111318', '#ffffff'] as const
+export const SERIES_HEX = ['#17a99c', '#c4880c', '#e04870', '#5a80f0', '#e7eff6'] as const
 export const OTHER = 'var(--series-other)'
 
 /** Entity-type encoding shared by every node-link view: color + shape, never color alone. */
@@ -104,4 +104,12 @@ export const fmt = {
   pct: new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 0 }),
   pct1: new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 1 }),
   dec2: new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }),
+}
+
+/** Pipeline text writes counts as "1 owner(s)"; read the number and say it
+    properly: "1 owner", "3 owners", "2 strong flags". */
+export function plural(text: string): string {
+  return text.replace(/\b(\d[\d,]*(?:\.\d+)?)((?:\s+[A-Za-z][\w-]*)*?\s+)([A-Za-z][\w-]*)\(s\)/g, (_, n: string, mid: string, w: string) =>
+    `${n}${mid}${w}${Number(n.replace(/,/g, '')) === 1 ? '' : 's'}`,
+  ).replace(/\b1 owner control\b/g, '1 owner controls')
 }

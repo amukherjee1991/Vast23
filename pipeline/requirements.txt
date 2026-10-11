@@ -1,8 +1,11 @@
+igraph==1.0.0
 ijson==3.5.1
 networkx==3.7
 numpy==2.5.3
 pandas==3.0.6
 pyarrow==26.0.0
 python-docx==1.2.0
+python-igraph==1.0.0
 scikit-learn==1.9.1
 scipy==1.18.1
+texttable==1.7.0

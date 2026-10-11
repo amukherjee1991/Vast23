@@ -32,10 +32,11 @@ export const mLabel = (m: number) => `${MONTHS[m % 12]} ${2028 + Math.floor(m / 
 
 /* ───────── legend bits ───────── */
 
-export function Swatch({ color, children, outline }: { color: string; children: ReactNode; outline?: boolean }) {
+/** A legend chip. `stroke` draws an outline (the old company's moonlight edge). */
+export function Swatch({ color, children, stroke }: { color: string; children: ReactNode; stroke?: string }) {
   return (
     <span className="legend-item">
-      <span className="legend-swatch" style={{ background: color, borderColor: outline === false ? color : undefined }} aria-hidden />
+      <span className="legend-swatch" style={{ background: color, boxShadow: stroke ? `inset 0 0 0 1.5px ${stroke}` : undefined }} aria-hidden />
       {children}
     </span>
   )
@@ -92,10 +93,10 @@ function YearAxis({ x, ih, m0, m1, w }: { x: (m: number) => number; ih: number; 
   const every = w < 360 && years.length > 4 ? 2 : 1
   return (
     <g>
-      <line x1={x(m0)} x2={x(m1 + 1)} y1={ih} y2={ih} stroke="var(--ink)" />
+      <line x1={x(m0)} x2={x(m1 + 1)} y1={ih} y2={ih} stroke="var(--ink-3)" />
       {years.map((m, i) => (
         <g key={m} transform={`translate(${x(m)},${ih})`}>
-          <line y2={4} stroke="var(--ink)" />
+          <line y2={4} stroke="var(--ink-3)" />
           {i % every === 0 && (
             <text x={3} y={16}>
               {2028 + m / 12}
@@ -162,7 +163,7 @@ export function MonthChart({
         <g transform={`translate(${m.l},${m.t})`}>
           {bands?.map((b) => (
             <g key={b.label} className="mc2-fade">
-              <rect x={x(b.m0)} y={0} width={x(b.m1 + 1) - x(b.m0)} height={ih} fill="var(--flag-yellow)" opacity={0.35} />
+              <rect x={x(b.m0)} y={0} width={x(b.m1 + 1) - x(b.m0)} height={ih} fill="var(--moon)" opacity={0.12} />
               <text x={x(b.m0) + 4} y={10} className="label-strong">
                 {b.label}
               </text>
@@ -306,7 +307,7 @@ export function LifespanBars({
               </text>
             </g>
           ))}
-          <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--ink)" />
+          <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--ink-3)" />
           <text x={iw} y={ih + 34} textAnchor="end">
             Months between first and last shipment
           </text>
@@ -343,8 +344,8 @@ export function IndexChart({ all, fish, months, band }: { all: number[]; fish: n
               width={step * (band[1] - band[0] + 1)}
               y={0}
               height={ih}
-              fill="var(--flag-yellow)"
-              opacity={0.35}
+              fill="var(--moon)"
+              opacity={0.13}
             />
           )}
           <g className="grid">
@@ -371,7 +372,7 @@ export function IndexChart({ all, fish, months, band }: { all: number[]; fish: n
               {iw < 330 ? mo[0] : mo}
             </text>
           ))}
-          <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--ink)" />
+          <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--ink-3)" />
           {months.map((mo, i) => (
             <rect
               key={mo}
@@ -547,8 +548,8 @@ export function GapColumns({
                 width={x0(B[band][1])! + x0.bandwidth() - x0(B[band][0])! + 6}
                 y={0}
                 height={ih}
-                fill="var(--flag-yellow)"
-                opacity={0.35}
+                fill="var(--moon)"
+                opacity={0.13}
               />
               <text x={x0(B[band][0])!} y={10} className="label-strong">
                 {B[band][2]}
@@ -608,7 +609,7 @@ export function GapColumns({
             </g>
           ))}
           <line x1={zero} x2={zero} y1={-4} y2={ih} stroke="var(--ink)" strokeDasharray="3 3" />
-          <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--ink)" />
+          <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--ink-3)" />
           <text x={zero - 6} y={ih + 32} textAnchor="end">
             {iw < 420 ? '← overlap' : '← the later company starts before the stop'}
           </text>
@@ -689,7 +690,7 @@ export function Scorecard({
                 <span className="mc2-score__bar">
                   {!narrow && (
                     <svg width={scoreW - 54} height={10} aria-hidden>
-                      <rect width={scoreW - 54} height={10} fill="var(--ground)" />
+                      <rect width={scoreW - 54} height={10} fill="var(--rule)" />
                       <rect width={(scoreW - 54) * b.score} height={10} fill={BUNDLE_COLOR[b.verdict]} />
                       <line x1={(scoreW - 54) * thresholds.Reliable} x2={(scoreW - 54) * thresholds.Reliable} y1={-1} y2={11} stroke="var(--ink)" />
                     </svg>
@@ -790,8 +791,8 @@ export function DistPanel({
               width={x.bandwidth()}
               height={ih - y(v)}
               fill={color}
-              stroke="var(--ink)"
-              strokeWidth={v > 0 ? 0.75 : 0}
+              stroke="var(--ground)"
+              strokeWidth={v > 0 ? 1 : 0}
             />
           ))}
           {ref_.map((v, i) => (
@@ -805,7 +806,7 @@ export function DistPanel({
               strokeWidth={2}
             />
           ))}
-          <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--ink)" />
+          <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--ink-3)" />
           {labels.map((l, i) =>
             i % every === 0 ? (
               <text key={i} x={(x(i) ?? 0) + x.bandwidth() / 2} y={ih + 13} textAnchor="middle" style={{ fontSize: 12 }}>
@@ -881,7 +882,7 @@ export function AddedColumns({ months, before, added, focus }: { months: string[
           {before.map((v, i) => (
             <rect key={i} x={x(i)} y={yA(v)} width={x.bandwidth()} height={hTop - yA(v)} fill="var(--series-other)" />
           ))}
-          <line x1={0} x2={iw} y1={hTop} y2={hTop} stroke="var(--ink)" />
+          <line x1={0} x2={iw} y1={hTop} y2={hTop} stroke="var(--ink-3)" />
           <g transform={`translate(0,${hTop + gap})`} className="mark" data-dim={false}>
             <text x={-m.l + 2} y={-4}>
               Predicted links added (scale ×1,000 larger)
@@ -906,7 +907,7 @@ export function AddedColumns({ months, before, added, focus }: { months: string[
                 strokeWidth={1.5}
               />
             ))}
-            <line x1={0} x2={iw} y1={hBot} y2={hBot} stroke="var(--ink)" />
+            <line x1={0} x2={iw} y1={hBot} y2={hBot} stroke="var(--ink-3)" />
             {months.map((mo, i) => (
               <text key={mo} x={(x(i) ?? 0) + x.bandwidth() / 2} y={hBot + 14} textAnchor="middle">
                 {iw < 330 ? MONTHS[i][0] : MONTHS[i]}
@@ -1002,7 +1003,7 @@ export function TransitionGrid({ transitions, focus }: { transitions: { from: Ca
                   }
                   onPointerLeave={tip.hide}
                 >
-                  <circle r={r(tr.pairs)} fill={same ? 'var(--series-other)' : BUNDLE_COLOR.Reliable} fillOpacity={same ? 0.5 : 1} stroke="var(--ink)" strokeWidth={same ? 0.5 : 1} />
+                  <circle r={r(tr.pairs)} fill={same ? 'var(--series-other)' : BUNDLE_COLOR.Reliable} fillOpacity={same ? 0.5 : 1} stroke={same ? 'var(--ink-3)' : 'var(--lit-4)'} strokeWidth={same ? 0.5 : 1} />
                   <text x={r(tr.pairs) + 3} y={0} dy="0.32em" className={same ? undefined : 'label-strong'} style={{ fontSize: 12 }}>
                     {tr.pairs}
                   </text>
@@ -1057,7 +1058,7 @@ export function RevivedRows({ rows, focus }: { rows: { id: string; role: string;
           )
         })}
         <g transform={`translate(${lw},${rows.length * rowH + 4})`}>
-          <line x1={0} x2={iw} stroke="var(--ink)" />
+          <line x1={0} x2={iw} stroke="var(--ink-3)" />
           {d3.range(12).map((i) =>
             i % (iw < 300 ? 2 : 1) === 0 ? (
               <text key={i} x={x(i + 0.5)} y={14} textAnchor="middle">
@@ -1135,8 +1136,8 @@ export function Handover({
             width={Math.max(2, Math.abs(x(start) - x(stop + 1)))}
             y={0}
             height={ih}
-            fill="var(--flag-yellow)"
-            opacity={0.4}
+            fill="var(--moon)"
+            opacity={0.13}
           />
           {months.map((i) => (
             <g key={i}>
@@ -1144,7 +1145,7 @@ export function Handover({
               {succ[i] > 0 && <rect x={x(i) + 0.5} y={mid} width={bw} height={y(succ[i])} fill={SUCC_COLOR} />}
             </g>
           ))}
-          <line x1={0} x2={iw} y1={mid} y2={mid} stroke="var(--ink)" />
+          <line x1={0} x2={iw} y1={mid} y2={mid} stroke="var(--ink-3)" />
           <g transform={`translate(${x(stop + 1)},0)`}>
             <line y1={-2} y2={mid} stroke={PRED_STROKE} strokeWidth={1.5} strokeDasharray={PRED_DASH} />
             <text y={-4} textAnchor={x(stop + 1) > iw - 90 ? 'end' : 'middle'} className="label-strong">
@@ -1162,7 +1163,7 @@ export function Handover({
               .filter((i) => i % 12 === 0)
               .map((i) => (
                 <g key={i} transform={`translate(${x(i)},0)`}>
-                  <line y2={4} stroke="var(--ink)" />
+                  <line y2={4} stroke="var(--ink-3)" />
                   <text x={2} y={16}>
                     {2028 + i / 12}
                   </text>
@@ -1258,14 +1259,14 @@ export function PartnerSwitch({
               <g transform={`translate(${lw},0)`}>
                 <line x1={0} x2={iw} y1={y0} y2={y0} stroke="var(--rule)" />
                 <line x1={a} x2={b} y1={y0} y2={y0} stroke="var(--ink-3)" strokeWidth={1.5} />
-                <circle cx={a} cy={y0} r={4.5} fill={PRED_COLOR} stroke="var(--ink)" strokeWidth={0.75} />
+                <circle cx={a} cy={y0} r={4.5} fill={PRED_COLOR} stroke={PRED_STROKE} strokeWidth={1.25} />
                 <rect x={b - 4} y={y0 - 4} width={8} height={8} fill={SUCC_COLOR} />
               </g>
             </g>
           )
         })}
         <g transform={`translate(${lw},${partners.length * rowH + 4})`}>
-          <line x1={0} x2={iw} stroke="var(--ink)" />
+          <line x1={0} x2={iw} stroke="var(--ink-3)" />
           {d3
             .range(m0, m1 + 1)
             .filter((i) => i % 12 === 0)
@@ -1328,7 +1329,7 @@ export function Consolidation({ rows, succ, succName }: { rows: { name: string; 
           )
         })}
         <g transform={`translate(${lw},${all.length * rowH + 4})`}>
-          <line x1={0} x2={iw} stroke="var(--ink)" />
+          <line x1={0} x2={iw} stroke="var(--ink-3)" />
           {d3
             .range(24, m1 + 1, 12)
             .map((i) => (
@@ -1363,8 +1364,8 @@ export function ShareRows({ rows, focus }: { rows: { key: string; label: string;
                 {r.label}
               </text>
               <g transform={`translate(${lw},${top})`}>
-                <rect width={iw} height={16} fill="var(--ground)" stroke="var(--rule-strong)" />
-                <rect width={Math.max(2, iw * s)} height={16} fill="var(--ink)" />
+                <rect width={iw} height={16} fill="var(--cloth)" stroke="var(--rule-strong)" />
+                <rect width={Math.max(2, iw * s)} height={16} fill="var(--moon)" />
                 <text x={iw + 6} y={8} dy="0.32em" className="label-strong">
                   {s < 0.01 ? d3.format('.3%')(s) : fpct1(s)}
                 </text>

@@ -68,7 +68,7 @@ export function Scatter({
                   {fmt(t)}
                 </text>
               ))}
-              <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--ink)" />
+              <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--rule-strong)" />
               {xLabel && (
                 <text x={iw} y={ih + 34} textAnchor="end" className="label-strong">
                   {xLabel} →

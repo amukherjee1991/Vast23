@@ -34,14 +34,15 @@
   display: inline-flex;
   gap: 4px;
   align-items: baseline;
-  padding: 1px 6px;
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--radius);
-  background: var(--cloth);
+  padding: 1px 0 2px;
+  border-bottom: 1px solid var(--rule-strong);
+}
+.mc1-signal + .mc1-signal {
+  margin-left: var(--s-2);
 }
 .mc1-signal[data-weak="true"] {
-  border-style: dashed;
-  border-color: var(--ink-3);
+  border-bottom-style: dashed;
+  border-bottom-color: var(--ink-3);
 }
 .mc1-signal b {
   color: var(--ink);
@@ -68,16 +69,16 @@
   gap: 6px;
   padding: 6px 10px;
   min-height: 36px;
-  border: var(--line) solid var(--ink);
+  border: var(--line) solid var(--rule-strong);
   border-radius: var(--radius);
-  background: var(--cloth);
+  background: var(--ground);
   font-size: var(--fs-small);
   font-weight: 700;
   font-variation-settings: "wdth" var(--w-data);
   white-space: nowrap;
 }
 .chain__node--suspect {
-  border-width: 3px;
+  border-width: 2px;
 }
 .chain__edge {
   position: relative;
@@ -109,9 +110,8 @@
   color: var(--ink-3);
 }
 .chain__edge[data-focus="true"] .chain__w {
-  background: var(--flag-yellow);
   color: var(--ink);
-  padding: 0 4px;
+  box-shadow: inset 0 -2px 0 var(--moon);
 }
 .chain__edge[data-focus="true"] .chain__line {
   border-top-width: 5px;
@@ -194,15 +194,15 @@
   font-variation-settings: "wdth" var(--w-data);
 }
 .cand[aria-pressed="true"] {
-  background: var(--ink);
-  color: var(--cloth);
+  background: var(--swell);
+  box-shadow: inset 2px 0 0 var(--moon);
 }
 .cand[aria-pressed="true"] .cand__rank {
-  color: var(--flag-yellow);
+  color: var(--moon);
 }
 @media (hover: hover) and (pointer: fine) {
   .cand:not([aria-pressed="true"]):hover {
-    background: var(--ground);
+    background: var(--cloth);
   }
 }
 @media (pointer: coarse) {
@@ -228,4 +228,15 @@
 .mc1 .claim {
   text-align: left;
   border-radius: 1px;
+}
+
+/* ───────── The sky: the signature scroll story ───────── */
+.mc1-story--wait {
+  min-height: 100dvh;
+}
+.sky {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(60% 55% at 55% 50%, color-mix(in oklab, var(--series-4) 7%, transparent), transparent 70%);
 }

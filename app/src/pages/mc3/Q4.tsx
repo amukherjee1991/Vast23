@@ -4,7 +4,7 @@ import { Await, Figure, LegendItem } from '../../components/Figure'
 import { Flag } from '../../components/Flag'
 import { VerdictTag } from '../../components/Signals'
 import { useJson } from '../../lib/useJson'
-import { VERDICT_COLOR, VERDICT_FLAG, fmt, toConfidence, toVerdict, type Verdict } from '../../lib/signals'
+import { VERDICT_COLOR, VERDICT_FLAG, fmt, plural, toConfidence, toVerdict, type Verdict } from '../../lib/signals'
 import { CanvasPlot, type CPoint } from './CanvasPlot'
 import { Claim, Conf, GraphLegend, GroupGraph, SCORE_PARTS, ScoreBar, reveal } from './parts'
 import { FLAG_LABEL, rowsOf, type GroupsOverview, type InvestGroup, type Investigate, type UnitRow } from './types'
@@ -192,7 +192,7 @@ function GroupDetail({ g, byId, setSelected }: { g: InvestGroup; byId: Map<strin
       </ul>
       <ul className="mc3-inv__reasons">
         {g.verdict_reasons.map((r) => (
-          <li key={r}>{r.charAt(0).toUpperCase() + r.slice(1)}.</li>
+          <li key={r}>{plural(r.charAt(0).toUpperCase() + r.slice(1))}.</li>
         ))}
       </ul>
       <GroupGraph nodes={g.subgraph.nodes} links={g.subgraph.links} keyCompanies={g.key_companies} height={400} />
@@ -209,7 +209,7 @@ function GroupDetail({ g, byId, setSelected }: { g: InvestGroup; byId: Map<strin
           <h6>Evidence</h6>
           <ul>
             {g.evidence.map((e) => (
-              <li key={e}>{e}</li>
+              <li key={e}>{plural(e)}</li>
             ))}
           </ul>
           {g.strong_flags.length > 0 && (
@@ -272,7 +272,7 @@ function OverlapFigure({
           x: u.anomaly_pct,
           y: u.iuu_relevance,
           color,
-          alpha: g ? 1 : showTop && top ? 0.8 : 0.4,
+          alpha: g ? 1 : showTop && top ? 0.85 : 0.6,
           r: g ? 4.5 : 2.4,
           emph: !!g && toVerdict(g.verdict) === 'Suspect',
           label: g && toVerdict(g.verdict) === 'Suspect' ? u.id : undefined,

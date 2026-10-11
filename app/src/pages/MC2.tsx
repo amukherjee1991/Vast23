@@ -3,22 +3,22 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 import { HeroHoist } from '../components/HeroHoist'
 import { ChallengeBand, ChallengePage, Question, type HalyardStop } from '../components/Layout'
 import { Await, Figure } from '../components/Figure'
+import { Scrolly, type ScrollyStep } from '../components/Scrolly'
+import { Bridge } from '../components/Story'
+import { useJson } from '../lib/useJson'
 import { VerdictTag } from '../components/Signals'
 import { Flag } from '../components/Flag'
 import { VERDICT_FLAG, toConfidence } from '../lib/signals'
 import {
-  ALL_COLOR,
   BUNDLE_COLOR,
   CAT_LABEL,
   CAT_ORDER,
   COMPONENTS,
   COMPONENT_LABEL,
-  FISH_COLOR,
   HS_LABEL,
   PRED_COLOR,
   PRED_STROKE,
   ROLE_COLOR,
-  ROLE_LABEL,
   SUCC_COLOR,
   mIdx,
   nice,
@@ -29,7 +29,6 @@ import {
   type MC2 as Data,
   type Pair,
   type PairVerdict,
-  type Role,
 } from './mc2/data'
 import {
   AddedColumns,
@@ -39,10 +38,7 @@ import {
   DistPanel,
   GapColumns,
   Handover,
-  IndexChart,
-  LifespanBars,
   LineSwatch,
-  MonthChart,
   PartnerSwitch,
   RevivedRows,
   Scorecard,
@@ -53,6 +49,8 @@ import {
   TransitionGrid,
   mLabel,
 } from './mc2/charts'
+import { Currents, PER_LIGHT, type CurrentsData } from './mc2/Currents'
+import { BundleScene, HandoverScene, LifeScene, VerdictScene } from './mc2/scenes'
 import './mc2/mc2.css'
 
 const STOPS: HalyardStop[] = [
@@ -103,10 +101,38 @@ const pairName = (p: Pair) => `${nice(p.predecessor)} → ${nice(p.successor)}`
 
 /* ───────── page ───────── */
 
+/** Scroll a story step onto the activation line so the stage switches to it. */
+function goStep(id: string) {
+  const el = document.getElementById(id)?.closest('.step')
+  if (!el) return
+  if (!window.matchMedia('(max-width: 960px)').matches) return el.scrollIntoView({ block: 'center' })
+  // phones: the step's top just past the activation line below the pinned stage (Scrolly)
+  window.scrollBy({ top: el.getBoundingClientRect().top - window.innerHeight * 0.66 })
+}
+
+/** A claim whose evidence is a step of the scroll story above. */
+function S({ step, onGo, children }: { step: string; onGo?: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      className="claim"
+      aria-controls="currents"
+      onClick={() => {
+        onGo?.()
+        goStep(step)
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
 export default function MC2() {
   const state = useMC2()
+  const cur = useJson<CurrentsData>('mc2/currents.json')
   const [pairRank, setPairRank] = useState(8)
   const [q4Claim, setQ4Claim] = useState<string | null>(null)
+  const [lifeFish, setLifeFish] = useState(false)
   const openPair = (rank: number) => {
     setPairRank(rank)
     setQ4Claim(null)
@@ -120,12 +146,20 @@ export default function MC2() {
           tone="blue"
           mc="Mini-challenge 2"
           title="Eight fish traders stop, then return under a new name"
+          kicker="Seven years of trade flowing into Oceanus, and the names that slip out of it"
+          stage={
+            cur.status === 'ready' ? (
+              <Currents
+                data={cur.data}
+                variant="hero"
+                ariaLabel="Animated currents of trade: the 80 largest country-to-country flows of 2028 to 2034, nearly all running into Oceanus at the centre. Teal lights are shipments of all goods, amber lights are fish."
+              />
+            ) : undefined
+          }
           lede={
             <>
-              Across 5.3 million shipments, 6,668 companies go silent before mid-2034. We matched each with look-alikes that start within a year and kept 872 candidate
-              handovers. Eight fit the illegal-fishing pattern: fish on both sides, a gap of three months or less, and partners that follow the new name. The clearest is
-              receiver −811, replaced by −206 the next month. Only five of FishEye’s twelve predicted-link bundles can be trusted, and adding them changes none of
-              these verdicts.
+              Of 6,668 companies that go silent, eight fit the illegal-fishing pattern: fish on both sides, a gap of three months or less, and partners that follow the
+              new name. The clearest is receiver −811, replaced by −206 the next month.
             </>
           }
           aside={
@@ -135,20 +169,237 @@ export default function MC2() {
           }
         />
       </div>
+      <section id="currents" className="chapter-story mc2-story" aria-label="The story in six steps">
+        {cur.status === 'ready' && state.status === 'ready' ? (
+          <Story cur={cur.data} d={state.data} lifeFish={lifeFish} setLifeFish={setLifeFish} onOpenPair={openPair} />
+        ) : (
+          <Await state={state} height={480}>
+            {() => <div style={{ minHeight: 480 }} />}
+          </Await>
+        )}
+      </section>
       <ChallengePage stops={STOPS}>
-        <Q1 state={state} />
+        <Q1 state={state} setLifeFish={setLifeFish} />
         <Q2 state={state} />
         <Q3 state={state} />
         <Q4 state={state} rank={pairRank} setRank={setPairRank} claim={q4Claim} setClaim={setQ4Claim} />
         <Q5 state={state} />
       </ChallengePage>
+      <Bridge
+        takeaway="A company going quiet proves nothing. A look-alike that inherits its partners the next month is the trace worth following."
+        lead="Names on a manifest can change in a month. The next chapter asks who stands behind them: the owners and contacts that tie Oceanus’s companies together."
+        next="/mc3"
+      />
     </main>
+  )
+}
+
+/* ───────── the scroll story ───────── */
+
+type Scene = 'cur' | 'life' | 'hand' | 'bun' | 'hold'
+const SCENE_OF: Scene[] = ['cur', 'cur', 'life', 'hand', 'bun', 'hold']
+
+function Story({
+  cur,
+  d,
+  lifeFish,
+  setLifeFish,
+  onOpenPair,
+}: {
+  cur: CurrentsData
+  d: Data
+  lifeFish: boolean
+  setLifeFish: (v: boolean) => void
+  onOpenPair: (rank: number) => void
+}) {
+  const h = d.co.lifespan_histogram
+  const lc = lifeFish ? d.co.lifecycle_counts_fish_majority : d.co.lifecycle_counts
+  const nShip = d3.sum(lifeFish ? h.shipper_fish_majority : h.shipper)
+  const nRec = d3.sum(lifeFish ? h.receiver_fish_majority : h.receiver)
+  const lifeLabels = lifeFish
+    ? {
+        shipper: ['Fish-majority shippers', `${fint(nShip)} · ${fint(lc.shipper.transient)} transient`] as [string, string],
+        receiver: ['Fish-majority receivers', `${fint(nRec)} · ${fint(lc.receiver.transient)} transient`] as [string, string],
+      }
+    : {
+        shipper: ['Shippers', `${fint(nShip)} · median span ${h.shipper_median_span} months`] as [string, string],
+        receiver: ['Receivers', `${fint(nRec)} · median span ${h.receiver_median_span} months`] as [string, string],
+      }
+  const [lifeReplay, setLifeReplay] = useState(0)
+  const pair = d.sus.pairs.find((p) => p.rank === 8)!
+  const imp = d.imp
+  const v0 = imp.successor_verdicts_before
+  const v1 = imp.successor_verdicts_after_redetect
+  const v2 = imp.sensitivity_with_questionable.verdict_counts
+  const hub = cur.flows.filter((f) => cur.countries[f[0]][0] === 'Oceanus' || cur.countries[f[1]][0] === 'Oceanus').length
+  const top = cur.flows[0]
+
+  const steps: ScrollyStep[] = [
+    {
+      id: 'mc2-step-market',
+      title: 'Trade runs one way: into Oceanus',
+      body: (
+        <div id="mc2-step-market">
+          <p>
+            {fint(d.meta.edges_deduplicated)} shipments, 2028 to 2034. Each light is about {PER_LIGHT} of them, travelling a current between two countries, and a
+            current runs faster in a busier month.
+          </p>
+          <p>
+            The market is a hub. {hub} of the {cur.flows.length} largest flows start or end in Oceanus, and {cur.countries[top[0]][0]} → Oceanus alone carries{' '}
+            {d3.format('.3s')(top[2]).replace('M', ' million')} shipments. Volume peaks in 2030 at 831k a year and falls to 688k in 2034.
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: 'mc2-step-fish',
+      title: 'Fish holds steady while the rest ebbs',
+      body: (
+        <div id="mc2-step-fish">
+          <p>
+            Fish (HS 0301–0309, 1604, 1605) stays at 96k–116k shipments a year as total trade shrinks, so its share rises from <b className="mc2-num">12.7%</b> to{' '}
+            <b className="mc2-num">15.6%</b>.
+          </p>
+          <p>
+            It is mildly seasonal: an index of 0.84–0.89 from February to April and 1.05–1.08 from July to December. Scrub the months under the currents to watch the
+            spring dip.
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: 'mc2-step-life',
+      title: 'Shippers stay lit; receivers flicker out',
+      body: (
+        <div id="mc2-step-life">
+          <p>
+            Each light is about 50 companies, lit for as long as it trades. Shippers are durable: a median span of {h.shipper_median_span} months, and 4,875 of
+            12,217 trade for 73–84 months. Receivers are fleeting: a median of {h.receiver_median_span}, and 44% appear in a single month.
+          </p>
+          <div className="mc2-seg" role="group" aria-label="Companies shown">
+            <button type="button" className="chip" aria-pressed={!lifeFish} onClick={() => setLifeFish(false)}>
+              All companies
+            </button>
+            <button type="button" className="chip" aria-pressed={lifeFish} onClick={() => setLifeFish(true)}>
+              Fish-majority only
+            </button>
+          </div>
+          <div className="mc2-seg mc2-replay">
+            <button type="button" className="chip" onClick={() => setLifeReplay((n) => n + 1)} aria-controls="mc2-life">
+              Replay 2028 to 2034
+            </button>
+          </div>
+          <p>Fish shippers churn more: 2,139 of 4,299 fish-majority shippers are transient, against 4,740 of all 12,217.</p>
+        </div>
+      ),
+    },
+    {
+      id: 'mc2-step-handover',
+      title: 'One buyer goes dark, another lights up',
+      body: (
+        <div id="mc2-step-handover">
+          <p>
+            Receiver −811 buys fillets until December 2032. In January 2033 receiver −206 starts buying the same goods from the same shippers: five of them switch
+            over, and they supply 78% of its trade.
+          </p>
+          <p>
+            Of 872 candidate handovers, eight are Suspect like this one, all fish on both sides. This is the clearest:{' '}
+            <strong>Suspect, high confidence</strong>.
+          </p>
+          <button type="button" className="mc2-go" onClick={() => onOpenPair(8)}>
+            Open the evidence for all eight
+          </button>
+        </div>
+      ),
+    },
+    {
+      id: 'mc2-step-bundles',
+      title: 'Twelve predictions; five look like the real graph',
+      body: (
+        <div id="mc2-step-bundles">
+          <p>
+            FishEye’s AI proposed twelve bundles of missing links. Scored on eleven tests against the real graph, carp, herring, chub_mackerel, pollock and
+            salmon_wgl pass.
+          </p>
+          <p>
+            The rest repeat a handful of records (cod2: 193 links built from 4), copy real edges outright (shark, lichen) or lack fields every real edge has
+            (catfish, mackerel, tuna).
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: 'mc2-step-hold',
+      title: 'Adding them changes no verdict',
+      body: (
+        <div id="mc2-step-hold">
+          <p>
+            The five Reliable bundles add {fint(imp.links_added)} usable links, under 0.1% of 2034 volume. Rerun on the augmented graph, detection keeps all 68
+            flagged pairs: {v1.Suspect} Suspect and {v1.Possible} Possible. Adding the two Questionable bundles as well keeps them again.
+          </p>
+          <p>What the links do reveal is that three apparent stops late in 2034 were missing data (Q3).</p>
+        </div>
+      ),
+    },
+  ]
+
+  return (
+    <Scrolly
+      label="Currents, lifespans, a handover and the predicted links"
+      steps={steps}
+      stage={(i) => {
+        const scene = SCENE_OF[i] ?? 'cur'
+        const on = (s: Scene) => ({ 'data-on': scene === s, 'aria-hidden': scene !== s })
+        return (
+          <div className="mc2-stage">
+            <div className="mc2-scene" {...on('cur')}>
+              <Currents
+                data={cur}
+                variant="stage"
+                fish={i === 1}
+                active={scene === 'cur'}
+                ariaLabel="Currents of trade between countries, 2028 to 2034, nearly all into Oceanus. Teal lights are all goods; amber lights are fish."
+              />
+            </div>
+            <div className="mc2-scene" id="mc2-life" {...on('life')}>
+              <LifeScene
+                hist={h}
+                cycles={lc}
+                fishOnly={lifeFish}
+                labels={lifeLabels}
+                medians={lifeFish ? null : { shipper: h.shipper_median_span, receiver: h.receiver_median_span }}
+                replay={lifeReplay}
+                active={scene === 'life'}
+              />
+            </div>
+            <div className="mc2-scene" {...on('hand')}>
+              <HandoverScene pair={pair} active={scene === 'hand'} />
+            </div>
+            <div className="mc2-scene" {...on('bun')}>
+              <BundleScene bundles={d.bun.bundles} active={scene === 'bun'} />
+            </div>
+            <div className="mc2-scene" {...on('hold')}>
+              <VerdictScene
+                active={scene === 'hold'}
+                columns={[
+                  { label: 'Graph as given', sub: `${d3.format('.3s')(d.meta.edges_deduplicated).replace('M', ' M')} shipments`, counts: v0 },
+                  { label: '+ 5 Reliable bundles', sub: `${fint(imp.links_added)} links`, counts: v1 },
+                  { label: '+ 2 Questionable too', sub: `${fint(imp.sensitivity_with_questionable.links_added)} links`, counts: v2 },
+                ]}
+                footnote={`One lamp per flagged pair. Unflagged pairs barely move: Insufficient evidence ${v0['Insufficient evidence']} → ${v1['Insufficient evidence']} → ${v2['Insufficient evidence']}, Unlikely ${v0.Unlikely} → ${v1.Unlikely} → ${v2.Unlikely}.`}
+              />
+            </div>
+          </div>
+        )
+      }}
+    />
   )
 }
 
 function PairHoist({ d, onOpen }: { d: Data; onOpen: (rank: number) => void }) {
   return (
     <HeroHoist
+      compact
       label="The strongest successor pairs"
       onSelect={(k) => onOpen(Number(k))}
       items={HOIST.map((h) => {
@@ -178,26 +429,10 @@ function PairHoist({ d, onOpen }: { d: Data; onOpen: (rank: number) => void }) {
 /* ═════════ Q1 ═════════ */
 
 type Q1Spec = {
-  ship?: { m0: number; m1: number; label: string }[]
-  share?: { m0: number; m1: number; label: string }[]
-  season?: [number, number]
-  role?: Role
-  subset?: 'all' | 'fish'
   cats?: Category[]
   gap?: 'twins' | 'restarts'
 }
 const Q1_CLAIMS: Record<string, Q1Spec> = {
-  peak: { ship: [{ m0: 24, m1: 35, label: '2030: 831k' }] },
-  share: {
-    share: [
-      { m0: 0, m1: 11, label: '12.7%' },
-      { m0: 72, m1: 83, label: '15.6%' },
-    ],
-  },
-  season: { season: [1, 3] },
-  shippers: { role: 'shipper', subset: 'all' },
-  receivers: { role: 'receiver', subset: 'all' },
-  fishchurn: { role: 'shipper', subset: 'fish' },
   core: { cats: ['steady'] },
   fringe: { cats: ['one_off'] },
   abrupt: { cats: ['abrupt_stop'] },
@@ -205,9 +440,8 @@ const Q1_CLAIMS: Record<string, Q1Spec> = {
   restarts: { gap: 'restarts' },
 }
 
-function Q1({ state }: { state: ReturnType<typeof useMC2> }) {
-  const [subset, setSubset] = useState<'all' | 'fish'>('all')
-  const { claim, setClaim, spec, press } = useClaim(Q1_CLAIMS, (s) => s.subset && setSubset(s.subset))
+function Q1({ state, setLifeFish }: { state: ReturnType<typeof useMC2>; setLifeFish: (v: boolean) => void }) {
+  const { claim, spec, press } = useClaim(Q1_CLAIMS)
   return (
     <ClaimCtx.Provider value={{ claim, press }}>
       <Question
@@ -218,14 +452,14 @@ function Q1({ state }: { state: ReturnType<typeof useMC2> }) {
         answer={
           <>
             <p>
-              <strong>The market.</strong> Yearly volume <C id="peak" to="fig-market">peaks in 2030 at 831k shipments</C> and falls to 688k in 2034. Fish holds at
-              96k–116k a year, so <C id="share" to="fig-market">its share rises from 12.7% to 15.6%</C>. Fish is mildly seasonal:{' '}
-              <C id="season" to="fig-market">an index of 0.84–0.89 in February to April</C> and 1.05–1.08 from July to December, against 0.91–1.09 for all goods.
+              <strong>The market.</strong> Yearly volume <S step="mc2-step-market">peaks in 2030 at 831k shipments</S> and falls to 688k in 2034. Fish holds at
+              96k–116k a year, so <S step="mc2-step-fish">its share rises from 12.7% to 15.6%</S>. Fish is mildly seasonal:{' '}
+              <S step="mc2-step-fish">an index of 0.84–0.89 in February to April</S> and 1.05–1.08 from July to December, against 0.91–1.09 for all goods.
             </p>
             <p>
-              <strong>Companies.</strong> The two roles behave differently. <C id="shippers" to="fig-life">Shippers are durable</C>: a median span of 59 months, and
-              4,875 of 12,217 trade for 73–84 months. <C id="receivers" to="fig-life">Receivers are fleeting</C>: a median span of 3 months, and 44% appear in a single
-              month. <C id="fishchurn" to="fig-life">Fish shippers churn more</C>: 2,139 of 4,299 fish-majority shippers are transient (they start after the data
+              <strong>Companies.</strong> The two roles behave differently. <S step="mc2-step-life" onGo={() => setLifeFish(false)}>Shippers are durable</S>: a median span of 59 months, and
+              4,875 of 12,217 trade for 73–84 months. <S step="mc2-step-life" onGo={() => setLifeFish(false)}>Receivers are fleeting</S>: a median span of 3 months, and 44% appear in a single
+              month. <S step="mc2-step-life" onGo={() => setLifeFish(true)}>Fish shippers churn more</S>: 2,139 of 4,299 fish-majority shippers are transient (they start after the data
               begins and stop before it ends), against 4,740 of all 12,217.
             </p>
             <p>
@@ -252,8 +486,6 @@ function Q1({ state }: { state: ReturnType<typeof useMC2> }) {
         <Await state={state} height={480}>
           {(d) => (
             <>
-              <MarketFigure d={d} spec={spec} />
-              <LifespanFigure d={d} focus={spec?.role ?? null} subset={subset} setSubset={(s) => (setSubset(s), setClaim(null))} />
               <TaxonomyFigure d={d} focus={spec?.cats ?? null} />
               <GapFigure d={d} band={spec?.gap ?? null} />
             </>
@@ -261,108 +493,6 @@ function Q1({ state }: { state: ReturnType<typeof useMC2> }) {
         </Await>
       </Question>
     </ClaimCtx.Provider>
-  )
-}
-
-function MarketFigure({ d, spec }: { d: Data; spec: Q1Spec | null }) {
-  const tl = d.tl
-  const cp = tl.calendar_profile
-  const years = d3.range(7).map((y) => ({
-    y: 2028 + y,
-    all: d3.sum(tl.shipments.slice(y * 12, y * 12 + 12)),
-    fish: d3.sum(tl.fish_shipments.slice(y * 12, y * 12 + 12)),
-  }))
-  return (
-    <Figure
-      id="fig-market"
-      title="Trade peaks in 2030 and declines; fish holds steady, so its share climbs to 15.6%, and it runs high from July to December"
-      legend={
-        <>
-          <LineSwatch color={ALL_COLOR}>All goods</LineSwatch>
-          <LineSwatch color={FISH_COLOR}>Fish (HS 0301–0309, 1604, 1605)</LineSwatch>
-        </>
-      }
-      caption={
-        <>
-          Source: <code>timeline_overview.json</code> → <code>shipments</code>, <code>fish_share</code>, <code>calendar_profile</code>.{' '}
-          {fint(d.meta.edges_deduplicated)} shipments after removing {fint(d.meta.exact_duplicates_removed)} exact duplicates. Calendar index = a month’s shipments
-          over the average month, 2028–2034.
-        </>
-      }
-      table={{
-        columns: ['Period', 'Shipments', 'Fish shipments', 'Fish share', 'Fish index', 'All-goods index'],
-        rows: [
-          ...years.map((r) => [String(r.y), r.all, r.fish, f1(r.fish / r.all), null, null]),
-          ...cp.months.map((m, i) => [`${m} (all years)`, null, null, null, cp.fish_index[i], cp.all_index[i]]),
-        ],
-      }}
-    >
-      <MonthChart values={tl.shipments} color={ALL_COLOR} area yLabel="Shipments per month" tipLabel="Shipments" height={140} bands={spec?.ship} />
-      <MonthChart
-        values={tl.fish_share}
-        color={FISH_COLOR}
-        yLabel="Fish share of shipments"
-        tipLabel="Fish share"
-        yFormat={d3.format('.0%')}
-        yDomain={[0.1, 0.18]}
-        height={124}
-        bands={spec?.share}
-      />
-      <p className="mc2-panel-label">Calendar profile: each month against the average month</p>
-      <IndexChart all={cp.all_index} fish={cp.fish_index} months={cp.months} band={spec?.season ?? null} />
-    </Figure>
-  )
-}
-
-function LifespanFigure({ d, focus, subset, setSubset }: { d: Data; focus: Role | null; subset: 'all' | 'fish'; setSubset: (s: 'all' | 'fish') => void }) {
-  const h = d.co.lifespan_histogram
-  const lc = subset === 'fish' ? d.co.lifecycle_counts_fish_majority : d.co.lifecycle_counts
-  const ship = subset === 'fish' ? h.shipper_fish_majority : h.shipper
-  const rec = subset === 'fish' ? h.receiver_fish_majority : h.receiver
-  const tr = (r: Role) => lc[r].transient / d3.sum(Object.values(lc[r]))
-  return (
-    <Figure
-      id="fig-life"
-      title={`Most shippers trade for years; most receivers vanish within ${h.receiver_median_span} months`}
-      subtitle={
-        <>
-          Median span: shippers {h.shipper_median_span} months, receivers {h.receiver_median_span}. Transient{subset === 'fish' ? ' among fish-majority companies' : ''}:{' '}
-          {f1(tr('shipper'))} of shippers, {f1(tr('receiver'))} of receivers.
-        </>
-      }
-      controls={
-        <div className="mc2-seg" role="group" aria-label="Companies shown">
-          <button type="button" className="chip" aria-pressed={subset === 'all'} onClick={() => setSubset('all')}>
-            All companies
-          </button>
-          <button type="button" className="chip" aria-pressed={subset === 'fish'} onClick={() => setSubset('fish')}>
-            Fish-majority only
-          </button>
-        </div>
-      }
-      legend={
-        <>
-          <Swatch color={ROLE_COLOR.shipper}>
-            {ROLE_LABEL.shipper} ({fint(d3.sum(ship))})
-          </Swatch>
-          <Swatch color={ROLE_COLOR.receiver}>
-            {ROLE_LABEL.receiver} ({fint(d3.sum(rec))})
-          </Swatch>
-        </>
-      }
-      caption={
-        <>
-          Source: <code>companies_top.json</code> → <code>lifespan_histogram</code>, <code>lifecycle_counts</code>. Span = months from first to last shipment, each
-          role as a share of its own companies.
-        </>
-      }
-      table={{
-        columns: ['Months active', 'Shippers', 'Receivers'],
-        rows: h.bin_labels.map((l, i) => [l, ship[i], rec[i]]),
-      }}
-    >
-      <LifespanBars labels={h.bin_labels} shipper={ship} receiver={rec} focus={focus} />
-    </Figure>
   )
 }
 
@@ -379,9 +509,7 @@ function TaxonomyFigure({ d, focus }: { d: Data; focus: Category[] | null }) {
           <Swatch color="var(--series-other)">Share of pairs</Swatch>
           <Swatch color="var(--ink)">Share of shipments</Swatch>
           <LineSwatch color="var(--ink)">Exemplar pair, 2028–2034</LineSwatch>
-          <Swatch color="var(--series-other)" outline={false}>
-            Category total
-          </Swatch>
+          <Swatch color="var(--series-other)">Category total</Swatch>
         </>
       }
       caption={
@@ -893,9 +1021,11 @@ function HandoverFigure({ d, rank }: { d: Data; rank: number }) {
       }
       legend={
         <>
-          <Swatch color={PRED_COLOR}>Old company (above the axis)</Swatch>
+          <Swatch color={PRED_COLOR} stroke={PRED_STROKE}>
+            Old company (above the axis)
+          </Swatch>
           <Swatch color={SUCC_COLOR}>New company (below)</Swatch>
-          <Swatch color="var(--flag-yellow)">Gap between stop and start</Swatch>
+          <Swatch color="color-mix(in oklab, var(--moon) 22%, transparent)">Gap between stop and start</Swatch>
         </>
       }
       caption={
@@ -1005,7 +1135,9 @@ function ConsolidationFigure({ d, on }: { d: Data; on: boolean }) {
       subtitle={on ? 'Karelians and the six companies it is matched to as successor.' : 'One new name matched as successor to six stopped shippers.'}
       legend={
         <>
-          <Swatch color={PRED_COLOR}>Stopped shipper (verdict of its pair)</Swatch>
+          <Swatch color={PRED_COLOR} stroke={PRED_STROKE}>
+            Stopped shipper (verdict of its pair)
+          </Swatch>
           <Swatch color={SUCC_COLOR}>Karelians</Swatch>
         </>
       }

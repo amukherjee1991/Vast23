@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { HashRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { SiteFooter, SiteHeader } from './components/Layout'
 import { TooltipProvider } from './components/Tooltip'
+import { StoryProgress, useChapterKeys } from './components/Story'
 import Home from './pages/Home'
 
 const MC1 = lazy(() => import('./pages/MC1'))
@@ -10,6 +11,7 @@ const MC3 = lazy(() => import('./pages/MC3'))
 const Method = lazy(() => import('./pages/Method'))
 
 function ScrollToTop() {
+  useChapterKeys()
   const { pathname } = useLocation()
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -31,6 +33,7 @@ export default function App() {
     <HashRouter>
       <TooltipProvider>
         <ScrollToTop />
+        <StoryProgress />
         <SiteHeader />
         <Suspense fallback={<Loading />}>
           <Routes>

@@ -15,7 +15,7 @@ export interface CPoint {
   color: string
   /** 0..1 fill opacity (e.g. cluster margin). */
   alpha?: number
-  /** Outline colour; signal-white points always need one to read on cloth. */
+  /** Outline colour, drawn over the glow (e.g. to set a moonlight point apart). */
   stroke?: string
   r?: number
   emph?: boolean
@@ -181,7 +181,7 @@ export function CanvasPlot({
                   {xFormat(t)}
                 </text>
               ))}
-              <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--ink)" />
+              <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--rule-strong)" />
               {xLabel && (
                 <text x={iw} y={ih + 34} textAnchor="end" className="label-strong">
                   {xLabel}
@@ -197,14 +197,14 @@ export function CanvasPlot({
           {refLines?.map((r) =>
             r.axis === 'x' ? (
               <g key={`x${r.value}`} transform={`translate(${xs(r.value)},0)`}>
-                <line y1={0} y2={ih} stroke="var(--ink)" strokeDasharray="3 3" />
+                <line y1={0} y2={ih} stroke="var(--ink-3)" strokeDasharray="3 3" />
                 <text x={-4} y={8} textAnchor="end" className="label-strong">
                   {r.label}
                 </text>
               </g>
             ) : (
               <g key={`y${r.value}`} transform={`translate(0,${ys(r.value)})`}>
-                <line x1={0} x2={iw} stroke="var(--ink)" strokeDasharray="3 3" />
+                <line x1={0} x2={iw} stroke="var(--ink-3)" strokeDasharray="3 3" />
                 <text x={4} y={-5} className="label-strong">
                   {r.label}
                 </text>
@@ -216,7 +216,8 @@ export function CanvasPlot({
             const left = x > iw - 150
             return (
               <g key={p.id} transform={`translate(${x},${y})`} pointerEvents="none">
-                <circle r={p.r ?? 4} fill={p.color} stroke="var(--ink)" strokeWidth={1.5} />
+                <circle r={(p.r ?? 4) + 4} fill={p.color} opacity={0.18} />
+                <circle r={p.r ?? 4} fill={p.color} stroke="var(--moon)" strokeWidth={1.25} />
                 {p.label && (
                   <text
                     x={left ? -(p.r ?? 4) - 5 : (p.r ?? 4) + 5}
@@ -232,9 +233,10 @@ export function CanvasPlot({
           })}
           {sel && (
             <g transform={`translate(${P(sel)[0]},${P(sel)[1]})`} pointerEvents="none">
-              <circle r={(sel.r ?? 4) + 5} fill="none" stroke="var(--ink)" strokeWidth={2} />
+              <circle r={(sel.r ?? 4) + 9} fill="none" stroke="var(--moon)" strokeOpacity={0.3} strokeWidth={1} />
+              <circle r={(sel.r ?? 4) + 5} fill="none" stroke="var(--moon)" strokeWidth={2} />
               {!sel.emph && (
-                <circle r={sel.r ?? 4} fill={sel.color} stroke="var(--ink)" strokeWidth={1.5} />
+                <circle r={sel.r ?? 4} fill={sel.color} stroke="var(--moon)" strokeWidth={1.25} />
               )}
             </g>
           )}
@@ -243,7 +245,7 @@ export function CanvasPlot({
               transform={`translate(${P(hov)[0]},${P(hov)[1]})`}
               r={(hov.r ?? 3) + 3}
               fill="none"
-              stroke="var(--ink)"
+              stroke="var(--ink-2)"
               strokeWidth={1.5}
               pointerEvents="none"
             />

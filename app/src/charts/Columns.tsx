@@ -65,7 +65,7 @@ export function Columns({
               )}
             </g>
           ))}
-          <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--ink)" />
+          <line x1={0} x2={iw} y1={ih} y2={ih} stroke="var(--rule-strong)" />
         </g>
       </svg>
     </div>

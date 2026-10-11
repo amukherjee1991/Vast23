@@ -2,6 +2,9 @@ import { Link } from 'react-router-dom'
 import { Flag } from '../components/Flag'
 import { ConfidencePennants, VerdictKey } from '../components/Signals'
 import { useJson } from '../lib/useJson'
+import { DriftField, type DriftSeed } from '../charts/DriftField'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { withMinus } from '../components/Minus'
 import { VERDICT_FLAG, toConfidence, toVerdict, type Confidence, type Verdict } from '../lib/signals'
 
 /* summary.json is baked by pipeline/build_summary.py from the three
@@ -15,6 +18,13 @@ interface HoistEntry {
   note: string
   href: string
 }
+/* drift.json (pipeline/stages_build.py): sampled real shipments for the sea of lights. */
+interface Drift {
+  months: [string, string] // first and last month
+  monthly: { all: number[]; fish: number[] }
+  samples: number[][] // [monthIndex, fish 0/1, logWeight]
+}
+
 interface Summary {
   hoist: HoistEntry[]
   challenges: { mc: string; headline: string }[]
@@ -28,6 +38,24 @@ const FALLBACK: HoistEntry[] = [
 ]
 
 const PENNANT: Record<string, 'P1' | 'P2' | 'P3'> = { MC1: 'P1', MC2: 'P2', MC3: 'P3' }
+
+/** Display name on the mast: a group named after its lead company drops the
+    company's legal form ("Adriatic Squid Ltd. Liability Co group" becomes
+    "Adriatic Squid group") so the name holds on two lines. */
+const LEGAL = /\s+(?:Ltd\.?\s+Liability\s+Co\.?|Limited\s+Liability\s+Company|LLC|Inc\.?|Corp(?:oration)?\.?|S\.A\.(?:\s+de\s+C\.V\.)?|GmbH|OJSC|CJSC|AG|BV|N\.V\.|Ltd\.?)(?=\s+group$)/i
+const mastName = (name: string) => name.replace(LEGAL, '')
+
+const PHONE = '(max-width: 720px)'
+function usePhone() {
+  const [m, setM] = useState(() => typeof window !== 'undefined' && window.matchMedia(PHONE).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(PHONE)
+    const on = () => setM(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return m
+}
 
 const CHALLENGES = [
   {
@@ -60,22 +88,69 @@ export default function Home() {
   const summary = useJson<Summary>('summary.json')
   const hoist = summary.status === 'ready' ? summary.data.hoist : FALLBACK
   const headlines = summary.status === 'ready' ? summary.data.challenges : []
+  const drift = useJson<Drift>('home/drift.json')
+  const seeds = useMemo<DriftSeed[]>(() => {
+    if (drift.status !== 'ready') return []
+    const { monthly, samples } = drift.data
+    const n = monthly.all.length
+    const maxW = Math.max(...samples.map((d) => d[2]), 1)
+    return samples.map(([m, f, lw]) => ({ t: m / Math.max(1, n - 1), fish: f === 1, w: lw / maxW }))
+  }, [drift])
+  const phone = usePhone()
+  // a narrow band holds fewer lights: every other shipment keeps it legible
+  const phoneSeeds = useMemo(() => seeds.filter((_, i) => i % 2 === 0), [seeds])
+  const mastRef = useRef<HTMLElement>(null)
+  const driftLabel = `${seeds.length} sampled shipments from the Oceanus customs records drifting as lights; amber lights carry fish.`
 
   return (
     <main>
       <section className="hero">
+        {/* wide screens: the currents run below the horizon behind everything,
+            fading out behind the mast; phones: a band of sea right under the
+            title, inside the first viewport */}
+        <div className="hero__stage" aria-hidden={seeds.length === 0 || phone}>
+          {seeds.length > 0 && !phone && <DriftField seeds={seeds} ariaLabel={driftLabel} avoid={mastRef} />}
+        </div>
         <div className="hero__copy">
           <h1 className="hero__title">Reading the signals of illegal fishing</h1>
-          <p className="hero__lede">
-            Three knowledge graphs from the IEEE VAST Challenge 2023 cover news, customs records, and corporate filings from the fictional
-            nation of Oceanus. Each verdict on this page is hoisted as a maritime signal flag, next to the interactive evidence that supports it.
-          </p>
+          {phone ? (
+            <p className="hero__lede">
+              Three knowledge graphs from the VAST Challenge 2023. Each drifting light is a real shipment; the amber ones carry fish.
+            </p>
+          ) : (
+            <p className="hero__lede">
+              Three knowledge graphs from the IEEE VAST Challenge 2023 cover news, customs records, and corporate filings from the fictional
+              nation of Oceanus. Each drifting light is a real shipment, and the amber ones carry fish. Each lamp on the mast is a verdict, hoisted
+              beside the evidence that supports it.
+            </p>
+          )}
+          {phone && (
+            <div className="hero__sea" aria-hidden={seeds.length === 0}>
+              {seeds.length > 0 && <DriftField seeds={phoneSeeds} ariaLabel={driftLabel} lanes={[0.14, 0.86]} />}
+            </div>
+          )}
+          <dl className="hero__stats">
+            {[
+              ['3,428', 'news entities'],
+              ['5.46M', 'shipments'],
+              ['27,622', 'register records'],
+              ['12', 'predicted-link sets'],
+            ].map(([n, l]) => (
+              <div key={l}>
+                <dt className="visually-hidden">{l}</dt>
+                <dd>
+                  <span className="hero__stat-n">{n}</span>
+                  <span className="hero__stat-l">{l}</span>
+                </dd>
+              </div>
+            ))}
+          </dl>
           <nav className="hero__paths" aria-label="Start with a mini-challenge">
             {CHALLENGES.map((c) => (
               <Link key={c.mc} to={c.to} className="hero__path">
-                <Flag code={c.pennant} size={56} decorative />
-                <span className="hero__path-mc">{c.mc}</span>
+                <Flag code={c.pennant} size={26} decorative />
                 <span className="hero__path-t">{c.title}</span>
+                <span className="visually-hidden"> ({c.mc})</span>
               </Link>
             ))}
           </nav>
@@ -84,7 +159,7 @@ export default function Home() {
           </Link>
         </div>
 
-        <figure className="mast" aria-label="Verdict hoist: one flag per investigated entity">
+        <figure ref={mastRef} className="mast" aria-label="Verdict hoist: one flag per investigated entity">
           <ol className="mast__flags">
             {hoist.map((h, i) => {
               const v: Verdict = toVerdict(h.verdict)
@@ -97,9 +172,12 @@ export default function Home() {
                       <Flag code={VERDICT_FLAG[v]} size={76} decorative />
                     </span>
                     <span className="mast__tag">
-                      <span className="mast__name">{h.name}</span>
+                      <span className="mast__name">{withMinus(mastName(h.name))}</span>
                       <span className="mast__verdict">
-                        {h.mc} · {v}, {c.toLowerCase()} confidence
+                        {h.mc} ·{' '}
+                        <span className="nowrap">
+                          {v}, {c.toLowerCase()} confidence
+                        </span>
                       </span>
                       <ConfidencePennants level={c} size={20} />
                       <span className="mast__note">{h.note}</span>
@@ -125,7 +203,7 @@ export default function Home() {
               <Flag code={c.pennant} size={72} decorative />
               <div className="route__text">
                 <h2 className="route__title">
-                  <span className="route__mc">{c.mc}</span> {c.title}
+                  {c.title} <span className="route__mc">{c.mc}</span>
                 </h2>
                 <p className="route__body">{head ?? c.body}</p>
                 <p className="route__data tnum">{c.data}</p>

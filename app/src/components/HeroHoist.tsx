@@ -14,12 +14,51 @@ export interface HoistPosition {
   action: string
 }
 
-/** The verdict hoist: one flag per finding, strung on a vertical halyard in
-    the band's right column (stacked under the lede on narrow screens). Each
+/** The verdict hoist: one flag per finding, strung on a halyard. Each
     position hangs its verdict flag from the line, names the entity, states
     verdict and confidence in a sentence, and gives the one-line reason. The
-    name opens the evidence; the whole position is the hit area. */
-export function HeroHoist({ label, items, onSelect }: { label: string; items: HoistPosition[]; onSelect: (key: string) => void }) {
+    name opens the evidence; the whole position is the hit area.
+
+    `compact` (chapter openers) is a quiet single-column halyard list: one
+    real button per finding with a small flag, the name and one verdict line.
+    The reason is read to assistive tech only; the stage names the lamps. */
+export function HeroHoist({
+  label,
+  items,
+  onSelect,
+  compact = false,
+}: {
+  label: string
+  items: HoistPosition[]
+  onSelect: (key: string) => void
+  /** Chapter openers: a single-column list of buttons (flag, name, verdict). */
+  compact?: boolean
+}) {
+  if (compact)
+    return (
+      <nav className="hoist hoist--compact" aria-label={label}>
+        <ol className="hoist__list">
+          {items.map((it, i) => (
+            <li key={it.key} className="hoist__pos" style={{ ['--i' as string]: i }}>
+              <button type="button" className="hoist__row" onClick={() => onSelect(it.key)}>
+                <span className="hoist__flag" aria-hidden>
+                  <Flag code={VERDICT_FLAG[it.verdict]} size={24} decorative />
+                </span>
+                <span className="hoist__name">{it.name}</span>
+                <span className="hoist__verdict">
+                  <span className="hoist__phrase">
+                    {it.verdict}, {it.confidence.toLowerCase()} confidence
+                  </span>
+                </span>
+                <span className="visually-hidden">
+                  . {it.reason} Select to {it.action}.
+                </span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      </nav>
+    )
   return (
     <div className="hoist">
       <span className="hoist__rope" aria-hidden />
@@ -39,13 +78,15 @@ export function HeroHoist({ label, items, onSelect }: { label: string; items: Ho
                   </button>
                 </h2>
                 <p className="hoist__verdict">
-                  <span>{it.verdict},</span>
-                  <span className="hoist__pennants" aria-hidden>
-                    {(['P1', 'P2', 'P3'] as const).map((p, j) => (
-                      <Flag key={p} code={p} size={14} decorative muted={j >= n} />
-                    ))}
+                  <span className="hoist__phrase">
+                    {it.verdict},{' '}
+                    <span className="hoist__pennants" aria-hidden>
+                      {(['P1', 'P2', 'P3'] as const).map((p, j) => (
+                        <Flag key={p} code={p} size={14} decorative muted={j >= n} />
+                      ))}
+                    </span>{' '}
+                    {it.confidence.toLowerCase()} confidence
                   </span>
-                  <span>{it.confidence.toLowerCase()} confidence</span>
                 </p>
                 <p className="hoist__reason">{it.reason}</p>
               </div>

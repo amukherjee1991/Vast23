@@ -42,10 +42,14 @@ import {
   type ChainEdge,
   type ChainHop,
 } from './mc1/charts'
+import { Bridge } from '../components/Story'
+import { MC1Story, OpenerSky } from './mc1/Story'
+import { useSky } from './mc1/sky'
 import './mc1/mc1.css'
 
 const STOPS: HalyardStop[] = [
   { id: 'verdicts', flag: 'L', label: 'Verdicts' },
+  { id: 'story', flag: 'S', label: 'The weak layer' },
   { id: 'q1', flag: 'C', label: 'Q1 Context' },
   { id: 'q2', flag: 'D', label: 'Q2 Compare' },
   { id: 'q3', flag: 'T', label: 'Q3 Who else' },
@@ -163,6 +167,7 @@ const ENTITY_TYPES = ['company', 'organization', 'person', 'vessel', 'location',
 
 export default function MC1() {
   const state = useMC1()
+  const sky = useSky(state.status === 'ready' ? state.data.lowconf.links : null)
   const [egoSuspect, setEgoSuspect] = useState<string>('#8327')
   const [q1Claim, setQ1Claim] = useState<string | null>(null)
 
@@ -180,6 +185,8 @@ export default function MC1() {
           tone="red"
           mc="Mini-challenge 1"
           title="A hidden layer of weak links ties the tips together"
+          kicker="Eighty-eight faint threads in FishEye’s graph, and the suspects caught in them"
+          stage={state.status === 'ready' && sky.status === 'ready' ? <OpenerSky sky={sky.data} d={state.data} /> : undefined}
           lede={
             <>
               Of 11,069 relations in FishEye’s knowledge graph, 88 carry a weight below 0.8. They form one 79-node component that random edges never produce, two-thirds of
@@ -193,12 +200,22 @@ export default function MC1() {
           }
         />
       </div>
+      {state.status === 'ready' && sky.status === 'ready' ? (
+        <MC1Story sky={sky.data} d={state.data} onSuspect={openSuspect} />
+      ) : (
+        <div id="story" className="chapter-story mc1-story--wait" aria-busy="true" />
+      )}
       <ChallengePage stops={STOPS}>
         <Q1 state={state} suspect={egoSuspect} setSuspect={setEgoSuspect} claim={q1Claim} setClaim={setQ1Claim} />
         <Q2 state={state} />
         <Q3 state={state} />
         <Q4 state={state} />
       </ChallengePage>
+      <Bridge
+        takeaway="Three of the four suspects sit in a 79-node web of the graph’s weakest links, a structure random edges never form."
+        lead="That web is a lead, not a verdict. Next, the trade records: who ships with whom, month by month, and which of the AI’s suggested links hold up."
+        next="/mc2"
+      />
     </main>
   )
 }
@@ -206,6 +223,7 @@ export default function MC1() {
 function SuspectHoist({ d, onOpen }: { d: MC1; onOpen: (k: string) => void }) {
   return (
     <HeroHoist
+      compact
       label="Verdicts on the four suspects"
       onSelect={onOpen}
       items={SUSPECT_ORDER.map((k) => {
@@ -225,11 +243,9 @@ function SuspectHoist({ d, onOpen }: { d: MC1; onOpen: (k: string) => void }) {
 
 /* ═════════ Q1 ═════════ */
 
-type Q1ClaimSpec = { ego?: string; hops?: 1 | 2; path?: (d: MC1) => string[]; layerPath?: (d: MC1) => string[]; layerSel?: string }
+type Q1ClaimSpec = { ego?: string; hops?: 1 | 2; path?: (d: MC1) => string[]; floor?: boolean }
 const Q1_CLAIMS: Record<string, Q1ClaimSpec> = {
-  loops: { layerPath: (d) => d.lowconf.ownership_cycles.flatMap((c) => [...c, c[0]]) },
-  fisheye: { layerSel: FISHEYE },
-  inlayer: { layerPath: () => ['Mar de la Vida OJSC', FISHEYE, 'Oceanfront Oasis Inc Carriers', '#8327'] },
+  floor: { floor: true },
   seabreeze: { ego: '#8327', hops: 2, path: () => [FISHEYE, 'Seabreeze Foods Ltd. Corporation United', '#8327'] },
   holding: { ego: '#8327', hops: 2, path: () => ['#8327', '#40213337', 'Sea Harvest'] },
   illegal: {
@@ -278,18 +294,12 @@ function Q1({
       answer={
         <>
           <p>
-            Almost every relation carries a weight between 0.80 and 0.99: 99.2% of the 11,069 rows. The other 88 rows, weighted 0.03 to 0.77, are not scattered noise.
-            They form one connected component of 79 nodes, where 1,000 random draws of 88 edges average a largest component of 10.6 nodes and never exceed 29
-            (p&nbsp;=&nbsp;0.001). Two-thirds of the layer is ownership, against 18% of the whole graph (p&nbsp;=&nbsp;2e-23), and it holds{' '}
-            <C id="loops" to="fig-layer">
-              two circular-ownership loops
+            The story above is the context all four verdicts share. Its evidence is the weight distribution:{' '}
+            <C id="floor" to="fig-weight">
+              weights stop at 0.8
             </C>
-            .{' '}
-            FishEye International has{' '}<C id="fisheye" to="fig-layer">19 of its 24 edges</C>{' '}
-            in the layer, so it may encode FishEye’s own reporting.{' '}
-            <C id="inlayer" to="fig-layer">Three of the four suspects</C>{' '}
-            sit inside it{' '}
-            (p&nbsp;=&nbsp;5e-5); the fourth is one hop away.
+            , and the 88 rows below the floor join into one component that random edges never produce. Two-thirds of the layer is ownership, against 18% of the whole
+            graph (p&nbsp;=&nbsp;2e-23). Each suspect in turn:
           </p>
           <h3>8327: Suspect, low confidence</h3>
           <p>
@@ -345,8 +355,7 @@ function Q1({
               setHops={(h) => (setHops(h), setClaim(null))}
               path={spec?.path ? spec.path(d) : null}
             />
-            <LayerFigure d={d} path={spec?.layerPath ? spec.layerPath(d) : null} selected={spec?.layerSel ?? null} />
-            <WeightFigure d={d} />
+            <WeightFigure d={d} focus={!!spec?.floor} />
           </>
         )}
       </Await>
@@ -465,45 +474,12 @@ function EgoFigure({
   )
 }
 
-function LayerFigure({ d, path, selected }: { d: MC1; path: string[] | null; selected: string | null }) {
-  const narrow = useMedia('(max-width: 720px)')
-  const { nodes, links } = useMemo(() => {
-    const nodes = d.lowconf.nodes.map((n) => gnode(d, n.k, n.k === FISHEYE ? { size: 9, label: 'FishEye' } : SHORT[n.k] ? { label: SHORT[n.k], size: 8 } : {}))
-    const links: GLink[] = d.lowconf.links.map((l) => ({ source: l.s, target: l.t, type: l.type, weight: l.w, dashed: true }))
-    return { nodes, links }
-  }, [d])
-  const lc = d.lowconf
-  return (
-    <Figure
-      id="fig-layer"
-      title="The 88 weak rows form one 79-node web, two-thirds ownership, with FishEye at its centre"
-      subtitle={`${lc.edge_types.ownership} ownership, ${lc.edge_types.membership} membership, ${lc.edge_types.family_relationship} family and ${lc.edge_types.partnership} partnership rows. 979893388 sits one hop outside.`}
-      legend={
-        <>
-          <EntityLegend types={['company', 'organization', 'person', 'other']} />
-          <EdgeLegend weak={false} allWeak />
-        </>
-      }
-      caption={
-        <>
-          Source: <code>lowconf.json</code> (nodes, links, ownership_cycles). Every edge here weighs under 0.8. Suspects are ringed in their verdict colour.
-        </>
-      }
-      table={{
-        columns: ['Source', 'Target', 'Relation', 'Weight'],
-        rows: [...lc.links].sort((a, b) => a.w - b.w).map((l) => [label(d, l.s), label(d, l.t), EDGE_LABEL[l.type], l.w]),
-      }}
-    >
-      <NetworkGraph nodes={nodes} links={links} height={narrow ? 380 : 460} linkColor={edgeColor} linkDash={edgeDash} path={path} selected={selected} />
-    </Figure>
-  )
-}
-
-function WeightFigure({ d }: { d: MC1 }) {
+function WeightFigure({ d, focus }: { d: MC1; focus: boolean }) {
   const lc = d.lowconf
   const h = lc.weight_hist
   return (
     <Figure
+      id="fig-weight"
       title="Weights stop at 0.8, and the few rows below it cluster in a way chance never does"
       legend={
         <>
@@ -522,7 +498,7 @@ function WeightFigure({ d }: { d: MC1 }) {
         rows: h.all.map((c, i) => [h.bins[i], h.bins[i + 1], c]),
       }}
     >
-      <WeightHist bins={h.bins} counts={h.all} threshold={lc.threshold} />
+      <WeightHist bins={h.bins} counts={h.all} threshold={lc.threshold} focus={focus ? 'low' : null} />
       <p className="mc1-panel-label">Largest component formed by {lc.n_edges} edges (nodes)</p>
       <NullStrip domain={[0, 80]} mean={lc.null_lcc_nodes.mean} p95={lc.null_lcc_nodes.p95} max={lc.null_lcc_nodes.max} observed={lc.n_nodes} unit="nodes" />
     </Figure>
@@ -587,7 +563,7 @@ function Q2({ state }: { state: ReturnType<typeof useMC1> }) {
             <strong>Patterns that point to illegal activity.</strong>
           </p>
           <ul>
-            <li>Ownership dominates the weak layer: two-thirds of its edges, two ownership loops of 4 and 5 entities, and a five-hop chain.</li>
+            <li>Ownership dominates the weak layer (the loops in the story above), and it holds a five-hop chain.</li>
             <li>
               One directed ownership chain{' '}<C id="chain" to="fig-chain">runs through three suspects</C>
               , from 8327 to 979893388 to Oceanfront Oasis. Mar de la Vida has no ownership path to any of them.
@@ -781,7 +757,7 @@ function DistanceFigure({ d, focus }: { d: MC1; focus: string | null }) {
       legend={
         <>
           <Swatch color="var(--series-other)">Random node pairs</Swatch>
-          <LineSwatch color="var(--flag-red)">Suspects’ mean</LineSwatch>
+          <LineSwatch color="var(--lit-3)">Suspects’ mean</LineSwatch>
           <LineSwatch color="var(--ink)" dashed>
             Baseline means
           </LineSwatch>
@@ -1037,7 +1013,7 @@ function LooFigure({ d, emphasise }: { d: MC1; emphasise: 'tool' | 'base' | null
             Our score
           </span>
           <span className="legend-item">
-            <span className="legend-swatch legend-swatch--circle" style={{ background: 'var(--cloth)', borderColor: 'var(--ink-3)' }} aria-hidden />
+            <span className="legend-swatch legend-swatch--circle" style={{ background: 'var(--ground)', boxShadow: 'inset 0 0 0 2px var(--ink-2)' }} aria-hidden />
             Degree baseline
           </span>
         </>

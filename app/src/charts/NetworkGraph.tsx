@@ -195,7 +195,7 @@ export function NetworkGraph({
               >
                 <circle r={r + 6} fill="transparent" />
                 {n.ring && <path d={shapePath(st.shape, r + 4)} fill="none" stroke={n.ring} strokeWidth={3} />}
-                <path d={shapePath(st.shape, r)} fill={st.color} stroke="var(--ink)" strokeWidth={n.emph ? 1.5 : 0.75} />
+                <path d={shapePath(st.shape, r)} fill={st.color} stroke={n.emph ? "var(--moon)" : "var(--ground)"} strokeWidth={n.emph ? 1.5 : 1} />
                 {lab && (
                   <text
                     x={lab.dx}
@@ -315,7 +315,7 @@ export function EntityLegend({ types }: { types: string[] }) {
         return (
           <span key={t} className="legend-item">
             <svg width={14} height={14} viewBox="-7 -7 14 14" aria-hidden>
-              <path d={shapePath(st.shape, 5)} fill={st.color} stroke="var(--ink)" strokeWidth={0.75} />
+              <path d={shapePath(st.shape, 5)} fill={st.color} stroke="var(--ground)" strokeWidth={1} />
             </svg>
             {st.label}
           </span>

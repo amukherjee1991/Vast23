@@ -3,14 +3,14 @@ import { useId, type ReactNode } from 'react'
 import { useWidth } from '../../charts/useSize'
 import { useTooltip } from '../../components/Tooltip'
 import { Flag } from '../../components/Flag'
-import { VERDICT_COLOR, VERDICT_FLAG, entityStyle, shapePath, toVerdict } from '../../lib/signals'
+import { VERDICT_COLOR, VERDICT_FLAG, entityStyle, plural, shapePath, toVerdict } from '../../lib/signals'
 import { EDGE_COLOR, EDGE_LABEL, SUSPECT_COLOR, SHORT, type Feature } from './data'
 
 const f2 = d3.format('.2f')
 const fint = d3.format(',')
 
 /* ───────── Weight histogram with the 0.8 cliff ───────── */
-export function WeightHist({ bins, counts, threshold }: { bins: number[]; counts: number[]; threshold: number }) {
+export function WeightHist({ bins, counts, threshold, focus = null }: { bins: number[]; counts: number[]; threshold: number; focus?: 'low' | null }) {
   const [ref, width] = useWidth<HTMLDivElement>()
   const tip = useTooltip()
   const height = 230
@@ -47,6 +47,8 @@ export function WeightHist({ bins, counts, threshold }: { bins: number[]; counts
             return (
               <g
                 key={i}
+                className="mark"
+                data-dim={focus === 'low' && !isLow}
                 onPointerMove={(e) =>
                   tip.show(
                     e,
@@ -68,7 +70,7 @@ export function WeightHist({ bins, counts, threshold }: { bins: number[]; counts
               </g>
             )
           })}
-          <line x1={x(threshold)} x2={x(threshold)} y1={-8} y2={ih} stroke="var(--flag-red)" strokeWidth={1.5} strokeDasharray="4 3" />
+          <line x1={x(threshold)} x2={x(threshold)} y1={-8} y2={ih} stroke="var(--lit-3)" strokeWidth={1.5} strokeDasharray="4 3" />
           <text x={x(threshold) - 6} y={-14} textAnchor="end" className="label-strong">
             {threshold} floor
           </text>
@@ -126,7 +128,7 @@ export function NullStrip({
           <text x={x(max)} y={cy + 26} textAnchor="middle">
             max {max}
           </text>
-          <circle cx={x(observed)} cy={cy} r={7} fill="var(--flag-red)" stroke="var(--ink)" strokeWidth={1.5} />
+          <circle cx={x(observed)} cy={cy} r={7} fill="var(--lit-3)" stroke="var(--ground)" strokeWidth={1.5} />
           <text x={x(observed)} y={cy - 16} textAnchor="end" className="label-strong">
             observed {observed}
           </text>
@@ -201,7 +203,7 @@ export function PercentileDots({
                     onPointerLeave={tip.hide}
                   >
                     <circle r={10} fill="transparent" />
-                    <circle r={5.5} fill={SUSPECT_COLOR[s.k]} stroke="var(--ink)" strokeWidth={1} />
+                    <circle r={5.5} fill={SUSPECT_COLOR[s.k]} stroke="var(--ground)" strokeWidth={1.5} />
                   </g>
                 )
               })}
@@ -236,7 +238,7 @@ export function RubricGrid({
   const tip = useTooltip()
   const pid = useId().replace(/:/g, '')
   const lw = Math.min(124, width * 0.3)
-  const totalW = 64
+  const totalW = 132
   const cw = Math.max(26, Math.min(64, (width - lw - totalW - 4) / signals.length))
   const ch = 40
   const head = 74
@@ -246,7 +248,7 @@ export function RubricGrid({
       <svg className="chart" width={width} height={height} role="img" aria-label="Rubric points per suspect and signal">
         <defs>
           <pattern id={`${pid}-hatch`} width={6} height={6} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <line x1={0} y1={0} x2={0} y2={6} stroke="var(--ink)" strokeWidth={1.5} />
+            <line x1={0} y1={0} x2={0} y2={6} stroke="var(--ground)" strokeWidth={2} />
           </pattern>
         </defs>
         {signals.map((s, j) => (
@@ -297,15 +299,15 @@ export function RubricGrid({
                               <span>{hit.basis_w == null ? 'structure only' : f2(hit.basis_w)}</span>
                             </span>
                           )}
-                          <span>{hit ? hit.detail : s.desc}</span>
+                          <span>{hit ? plural(hit.detail) : s.desc}</span>
                         </>,
                       )
                     }
                     onPointerLeave={tip.hide}
                   >
                     <rect width={cw - 3} height={ch - 4} fill={fill} stroke="var(--rule-strong)" />
-                    {weak && <rect width={cw - 3} height={ch - 4} fill={`url(#${pid}-hatch)`} opacity={pts >= 1 ? 0.55 : 0.4} style={{ mixBlendMode: 'multiply' }} />}
-                    {weak && pts >= 1 && <rect width={cw - 3} height={ch - 4} fill="none" stroke="var(--ink)" strokeWidth={1.5} />}
+                    {weak && <rect width={cw - 3} height={ch - 4} fill={`url(#${pid}-hatch)`} opacity={0.7} />}
+                    {weak && <rect x={0.75} y={0.75} width={cw - 4.5} height={ch - 5.5} fill="none" stroke="var(--ink)" strokeWidth={1.5} strokeDasharray="4 3" />}
                   </g>
                 )
               })}
@@ -313,7 +315,10 @@ export function RubricGrid({
                 <text dy="0.32em" className="label-strong" style={{ fontSize: 13 }}>
                   {r.points}
                 </text>
-                <rect x={24} y={-6} width={22} height={12} fill={VERDICT_COLOR[v]} stroke="var(--ink)" strokeWidth={1} />
+                <circle cx={32} r={6} fill={VERDICT_COLOR[v]} />
+                <text x={44} dy="0.32em">
+                  {v}
+                </text>
               </g>
             </g>
           )
@@ -338,19 +343,21 @@ export function RubricLegend() {
         <svg width={14} height={14} aria-hidden>
           <defs>
             <pattern id={`${pid}-h`} width={5} height={5} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-              <line x1={0} y1={0} x2={0} y2={5} stroke="var(--ink)" strokeWidth={1.5} />
+              <line x1={0} y1={0} x2={0} y2={5} stroke="var(--ground)" strokeWidth={2} />
             </pattern>
           </defs>
-          <rect x={0.5} y={0.5} width={13} height={13} fill={`url(#${pid}-h)`} stroke="var(--ink)" />
+          <rect x={0.5} y={0.5} width={13} height={13} fill="var(--seq-600)" />
+          <rect x={0.5} y={0.5} width={13} height={13} fill={`url(#${pid}-h)`} opacity={0.7} />
+          <rect x={1.25} y={1.25} width={11.5} height={11.5} fill="none" stroke="var(--ink)" strokeWidth={1.5} strokeDasharray="4 3" />
         </svg>
         Rests on an edge below 0.8
       </span>
       <span className="legend-item">
-        <span className="legend-swatch" style={{ background: 'var(--verdict-suspect)' }} aria-hidden />
+        <span className="legend-swatch legend-swatch--circle" style={{ background: 'var(--verdict-suspect)' }} aria-hidden />
         Suspect (4+)
       </span>
       <span className="legend-item">
-        <span className="legend-swatch" style={{ background: 'var(--verdict-possible)' }} aria-hidden />
+        <span className="legend-swatch legend-swatch--circle" style={{ background: 'var(--verdict-possible)' }} aria-hidden />
         Possible (2.5–3.5)
       </span>
     </>
@@ -382,7 +389,7 @@ export function ChainStrip({ hops, edges, focusEdge }: { hops: ChainHop[]; edges
           <li key={h.k} className="chain__item">
             <span className={`chain__node${v ? ' chain__node--suspect' : ''}`} style={v ? { borderColor: VERDICT_COLOR[v] } : undefined}>
               <svg width={14} height={14} viewBox="-7 -7 14 14" aria-hidden>
-                <path d={shapePath(st.shape, 5)} fill={st.color} stroke="var(--ink)" strokeWidth={0.75} />
+                <path d={shapePath(st.shape, 5)} fill={st.color} stroke="var(--ground)" strokeWidth={0.75} />
               </svg>
               <span className="chain__label">{h.label}</span>
               {v && <Flag code={VERDICT_FLAG[v]} size={18} label={v} />}
@@ -421,7 +428,7 @@ export function DistanceNull({
   const [ref, width] = useWidth<HTMLDivElement>()
   const tip = useTooltip()
   const height = 240
-  const m = { t: 54, r: 16, b: 34, l: 44 }
+  const m = { t: 72, r: 16, b: 34, l: 44 }
   const iw = width - m.l - m.r
   const ih = height - m.t - m.b
   const keys = Object.keys(hist).map(Number).sort((a, b) => a - b)
@@ -443,7 +450,7 @@ export function DistanceNull({
               {d3.format('.0%')(t)}
             </text>
           ))}
-          <text x={-m.l + 2} y={-40}>
+          <text x={-m.l + 2} y={-58}>
             Share of random pairs
           </text>
           {keys.map((k) => (
@@ -481,7 +488,7 @@ export function DistanceNull({
             const dim = focus != null && focus !== mk.id
             return (
               <g key={mk.id} className="mark" data-dim={dim} transform={`translate(${x(mk.x)},0)`}>
-                <line y1={-(i % 2 ? 12 : 30)} y2={ih} stroke={mk.strong ? 'var(--flag-red)' : 'var(--ink)'} strokeWidth={1.5} strokeDasharray={mk.strong ? undefined : '4 3'} />
+                <line y1={-(i % 2 ? 12 : 30)} y2={ih} stroke={mk.strong ? 'var(--lit-3)' : 'var(--ink)'} strokeWidth={1.5} strokeDasharray={mk.strong ? undefined : '4 3'} />
                 <text y={-(i % 2 ? 16 : 34)} textAnchor={x(mk.x) > iw - 90 ? 'end' : x(mk.x) < 90 ? 'start' : 'middle'} className="label-strong">
                   {mk.label}
                 </text>
@@ -507,7 +514,7 @@ export function ContribBar({ contrib, width, height = 14 }: { contrib: Record<Fe
   let acc = 0
   return (
     <svg width={width} height={height} aria-hidden style={{ display: 'block', overflow: 'visible' }}>
-      <rect width={width} height={height} fill="var(--ground)" />
+      <rect width={width} height={height} fill="var(--rule)" />
       {FEATURE_GROUPS.map((g) => {
         const v = d3.sum(g.members, (f) => contrib[f] ?? 0)
         const r = <rect key={g.id} x={x(acc)} width={Math.max(0, x(v) - 1)} height={height} fill={g.color} />
@@ -580,13 +587,13 @@ export function Dumbbells({
               </text>
               <line x1={x(r.rank)} x2={x(r.base)} stroke="var(--rule-strong)" strokeWidth={2} />
               <g className="mark" data-dim={emphasise === 'tool'}>
-                <circle cx={x(r.base)} r={6} fill="var(--cloth)" stroke="var(--ink-3)" strokeWidth={2} />
+                <circle cx={x(r.base)} r={6} fill="var(--ground)" stroke="var(--ink-2)" strokeWidth={2} />
                 <text x={x(r.base)} y={-11} textAnchor="middle">
                   {r.base}
                 </text>
               </g>
               <g className="mark" data-dim={emphasise === 'base'}>
-                <circle cx={x(r.rank)} r={6} fill="var(--series-1)" stroke="var(--ink)" strokeWidth={1} />
+                <circle cx={x(r.rank)} r={6} fill="var(--series-1)" stroke="var(--ground)" strokeWidth={1.5} />
                 <text x={x(r.rank)} y={-11} textAnchor="middle" className="label-strong">
                   {r.rank}
                 </text>

@@ -1,9 +1,6 @@
 /* MC3 page. Only tokens from tokens.css; motion is transform/opacity with
    ease-out tokens, and every hover is gated behind a fine pointer. */
 
-.mc3 .band__title {
-  max-width: 22ch;
-}
 
 /* ───────── Canvas scatter ───────── */
 .cplot {
@@ -19,7 +16,7 @@
 }
 .cplot__label {
   paint-order: stroke;
-  stroke: var(--cloth);
+  stroke: var(--ground);
   stroke-width: 3px;
 }
 
@@ -81,7 +78,7 @@
 }
 .mc3-reasons__track {
   height: 6px;
-  background: var(--ground);
+  background: var(--rule);
   align-self: center;
   overflow: hidden;
 }
@@ -129,13 +126,13 @@
 }
 .mc3-clist__row[aria-pressed="true"],
 .mc3-coh__row[aria-pressed="true"] {
-  background: var(--ground);
-  box-shadow: inset 0 0 0 var(--line) var(--ink);
+  background: var(--swell);
+  box-shadow: inset 0 0 0 var(--line) color-mix(in oklab, var(--moon) 40%, transparent);
 }
 @media (hover: hover) and (pointer: fine) {
-  .mc3-clist__row:hover,
-  .mc3-coh__row:hover {
-    background: var(--ground);
+  .mc3-clist__row:not([aria-pressed="true"]):hover,
+  .mc3-coh__row:not([aria-pressed="true"]):hover {
+    background: var(--cloth);
   }
 }
 @media (pointer: coarse) {
@@ -157,7 +154,6 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 1px solid var(--ink);
   flex: none;
 }
 .mc3-clist__terms {
@@ -181,7 +177,7 @@
 }
 .mc3-clist__track {
   height: 6px;
-  background: var(--ground);
+  background: var(--rule);
   overflow: hidden;
 }
 .mc3-clist__track span {
@@ -220,7 +216,7 @@
 .mc3-bullet__track {
   position: relative;
   height: 6px;
-  background: var(--ground);
+  background: var(--rule);
 }
 .mc3-bullet__bar {
   display: block;
@@ -295,12 +291,12 @@
   transition: background-color var(--t-ui) var(--ease-out);
 }
 .mc3-inv__row[aria-pressed="true"] {
-  background: var(--ground);
-  box-shadow: inset 0 0 0 var(--line) var(--ink);
+  background: var(--swell);
+  box-shadow: inset 0 0 0 var(--line) color-mix(in oklab, var(--moon) 40%, transparent);
 }
 @media (hover: hover) and (pointer: fine) {
-  .mc3-inv__row:hover {
-    background: var(--ground);
+  .mc3-inv__row:not([aria-pressed="true"]):hover {
+    background: var(--cloth);
   }
 }
 .mc3-inv__rank {
@@ -357,8 +353,9 @@
 }
 .mc3-inv__title {
   margin: 0;
-  font-size: var(--fs-h3);
-  font-weight: 850;
+  font-family: var(--font-display);
+  font-size: var(--fs-card);
+  font-weight: 500;
   font-variation-settings: "wdth" var(--w-data);
 }
 .mc3-inv__title span {
@@ -455,7 +452,6 @@
 }
 .mc3-graph {
   overflow: hidden;
-  border-top: 1px solid var(--rule);
 }
 .mc3-coh__conf {
   width: 128px;
@@ -464,4 +460,81 @@
   .mc3-coh__conf {
     width: auto;
   }
+}
+
+/* ───────── Night-sea story: opener galaxy, scroll stage, scenes ───────── */
+.mc3-backdrop {
+  position: absolute;
+  inset: 0;
+}
+.mc3-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.mc3-scene {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-story) var(--ease-in-out);
+}
+.mc3-scene[data-on="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+.mc3-verdicts {
+  justify-content: flex-end;
+}
+.mc3-verdicts .verdict__label {
+  color: var(--ink);
+}
+/* the random control: a lit strip in the stage's top-right corner */
+.mc3-strip {
+  position: absolute;
+  z-index: 1;
+  right: var(--s-3);
+  top: var(--s-3);
+  width: min(460px, calc(100% - 2 * var(--s-3)));
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity var(--t-base) var(--ease-out), transform var(--t-base) var(--ease-out);
+  pointer-events: none;
+}
+.mc3-strip[data-on="true"] {
+  opacity: 1;
+  transform: none;
+  transition-delay: 200ms;
+}
+.mc3-strip__title {
+  font-size: var(--fs-label);
+  color: var(--ink-2);
+  margin-bottom: var(--s-1);
+  text-shadow: var(--halo);
+}
+.mc3-strip__title span {
+  color: var(--ink-3);
+}
+.mc3-strip .mc3-strip__lit {
+  fill: var(--lit-1);
+}
+.mc3-strip__lamp {
+  filter: drop-shadow(0 0 6px var(--lit-1));
+}
+.mc3-swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  vertical-align: 0.05em;
+  margin-right: 2px;
+}
+.mc3-swatch--teal { background: var(--lit-1); }
+.mc3-swatch--moon { background: var(--series-5); }
+.mc3-swatch--amber { background: var(--lit-2); }
+.mc3-swatch--rose { background: var(--lit-3); }
+.mc3-step__acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
 }

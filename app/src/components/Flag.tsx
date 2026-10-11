@@ -2,7 +2,7 @@ import { useId, type ReactNode } from 'react'
 
 /* International Code of Signals flags, drawn flat on a 60×45 grid
    (pennants on 90×36). Colors are the flag cloth tokens; every flag
-   carries the one even ink outline so yellow and white read on white. */
+   carries a moonlit edge so black, blue and red cloth read on the dark sea. */
 
 export type FlagCode =
   | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M'
@@ -253,7 +253,7 @@ export function Flag({ code, size = 28, label, className, decorative, muted }: F
         <path d={outlinePath} />
       </clipPath>
       <g clipPath={`url(#${clipId})`}>{isPennant ? pennant(code as 'P1' | 'P2' | 'P3') : body(code)}</g>
-      <path d={outlinePath} fill="none" stroke="var(--ink)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+      <path d={outlinePath} fill="none" stroke="var(--flag-edge)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
     </svg>
   )
 }

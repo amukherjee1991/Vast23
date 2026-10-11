@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { Flag, type FlagCode } from './Flag'
 
@@ -60,8 +60,19 @@ const NAV: { to: string; code: FlagCode; label: string }[] = [
 ]
 
 export function SiteHeader() {
+  // Keep --header-h exact (it wraps to two rows on phones), so sticky stages
+  // and scroll targets pin just below it.
+  const ref = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const root = document.documentElement
+    const ro = new ResizeObserver(() => root.style.setProperty('--header-h', `${Math.round(el.getBoundingClientRect().height)}px`))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   return (
-    <header className="site-head">
+    <header ref={ref} className="site-head">
       <Link to="/" className="wordmark" aria-label="Signal Hoist, home">
         <Flag code="L" size={26} decorative />
         <span>Signal&nbsp;Hoist</span>
@@ -108,9 +119,10 @@ export function SiteFooter() {
   )
 }
 
-/** Opening band of a mini-challenge page: a full field of its pennant colour.
-    `aside` (e.g. the verdict hoist) takes the right column on wide screens and
-    stacks under the lede on narrow ones; without it the band is one column. */
+/** Opening band of a mini-challenge page: a night scene in two regions. The
+    words (pennant, title, kicker, lede, then `aside`, e.g. the compact verdict
+    hoist) hold the left column; `stage` fills the right region at full band
+    height on wide screens and sits on top of the words on narrow ones. */
 export function ChallengeBand({
   pennant,
   mc,
@@ -118,6 +130,8 @@ export function ChallengeBand({
   lede,
   tone,
   aside,
+  stage,
+  kicker,
   children,
 }: {
   pennant: 'P1' | 'P2' | 'P3'
@@ -126,34 +140,26 @@ export function ChallengeBand({
   lede: ReactNode
   tone: 'red' | 'blue' | 'yellow'
   aside?: ReactNode
+  /** The chapter's canvas scene (label it). */
+  stage?: ReactNode
+  /** Italic serif subtitle under the chapter title. */
+  kicker?: string
   children?: ReactNode
 }) {
-  const head = (
-    <>
-      <div className="band__mark">
-        <Flag code={pennant} size={64} label={mc} />
-      </div>
-      <h1 className="band__title">{title}</h1>
-      <p className="band__lede">{lede}</p>
-    </>
-  )
-  if (!aside)
-    return (
-      <section className={`band band--${tone}`}>
-        <div className="band__inner">
-          {head}
-          {children}
-        </div>
-      </section>
-    )
   return (
     <section className={`band band--${tone}`}>
-      <div className="band__inner band__inner--split">
+      <div className="band__stage">{stage}</div>
+      <div className="band__inner">
         <div className="band__main">
-          {head}
+          <div className="band__mark">
+            <Flag code={pennant} size={52} label={mc} />
+          </div>
+          <h1 className="band__title">{title}</h1>
+          {kicker && <p className="band__kicker">{kicker}</p>}
+          <p className="band__lede">{lede}</p>
           {children}
+          {aside && <div className="band__aside">{aside}</div>}
         </div>
-        <div className="band__aside">{aside}</div>
       </div>
     </section>
   )
@@ -195,15 +201,23 @@ export function Question({
   )
 }
 
-/** The answer column pins beside its evidence when it fits on screen,
-    so a claim stays in view while the reader works through its figures. */
+/** The answer column stays beside its evidence. When it fits on screen it
+    pins under the header; when it is taller than the screen it scrolls with
+    the page until its last lines are in view, then holds there (a negative
+    sticky top), so a long act never leaves its prose column empty beside a
+    chart further down. */
 function Answer({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [pin, setPin] = useState(false)
+  const [top, setTop] = useState<number | null>(null)
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    const check = () => setPin(el.offsetHeight < window.innerHeight - 140)
+    const check = () => {
+      const head = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 65
+      const h = el.offsetHeight
+      const fits = h < window.innerHeight - 140
+      setTop(fits ? head + 24 : Math.round(window.innerHeight - h - 32))
+    }
     const ro = new ResizeObserver(check)
     ro.observe(el)
     window.addEventListener('resize', check)
@@ -213,7 +227,11 @@ function Answer({ children }: { children: ReactNode }) {
     }
   }, [])
   return (
-    <div ref={ref} className={`q__answer prose${pin ? ' q__answer--pin' : ''}`}>
+    <div
+      ref={ref}
+      className={`q__answer prose${top != null ? ' q__answer--pin' : ''}`}
+      style={top != null ? ({ ['--answer-top' as string]: `${top}px` } as CSSProperties) : undefined}
+    >
       {children}
     </div>
   )
