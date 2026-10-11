@@ -225,6 +225,7 @@ function Story({
         shipper: ['Shippers', `${fint(nShip)} · median span ${h.shipper_median_span} months`] as [string, string],
         receiver: ['Receivers', `${fint(nRec)} · median span ${h.receiver_median_span} months`] as [string, string],
       }
+  const [lifeReplay, setLifeReplay] = useState(0)
   const pair = d.sus.pairs.find((p) => p.rank === 8)!
   const imp = d.imp
   const v0 = imp.successor_verdicts_before
@@ -281,6 +282,11 @@ function Story({
             </button>
             <button type="button" className="chip" aria-pressed={lifeFish} onClick={() => setLifeFish(true)}>
               Fish-majority only
+            </button>
+          </div>
+          <div className="mc2-seg mc2-replay">
+            <button type="button" className="chip" onClick={() => setLifeReplay((n) => n + 1)} aria-controls="mc2-life">
+              Replay 2028 to 2034
             </button>
           </div>
           <p>Fish shippers churn more: 2,139 of 4,299 fish-majority shippers are transient, against 4,740 of all 12,217.</p>
@@ -355,8 +361,16 @@ function Story({
                 ariaLabel="Currents of trade between countries, 2028 to 2034, nearly all into Oceanus. Teal lights are all goods; amber lights are fish."
               />
             </div>
-            <div className="mc2-scene" {...on('life')}>
-              <LifeScene hist={h} cycles={lc} fishOnly={lifeFish} labels={lifeLabels} active={scene === 'life'} />
+            <div className="mc2-scene" id="mc2-life" {...on('life')}>
+              <LifeScene
+                hist={h}
+                cycles={lc}
+                fishOnly={lifeFish}
+                labels={lifeLabels}
+                medians={lifeFish ? null : { shipper: h.shipper_median_span, receiver: h.receiver_median_span }}
+                replay={lifeReplay}
+                active={scene === 'life'}
+              />
             </div>
             <div className="mc2-scene" {...on('hand')}>
               <HandoverScene pair={pair} active={scene === 'hand'} />

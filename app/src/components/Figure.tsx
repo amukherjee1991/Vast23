@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import type { Loadable } from '../lib/useJson'
+import { withMinus } from './Minus'
 
 export interface TableSpec {
   columns: string[]
@@ -34,7 +35,7 @@ export function Figure({
     <figure className={`fig${wide ? ' fig--wide' : ''}`} id={id}>
       <header className="fig__head">
         <div>
-          <h4 className="fig__title">{title}</h4>
+          <h4 className="fig__title">{withMinus(title)}</h4>
           {subtitle && <p className="fig__sub">{subtitle}</p>}
         </div>
         {table && (

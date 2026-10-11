@@ -514,6 +514,14 @@
 .mc2-story .step .mc2-seg {
   margin: var(--s-3) 0;
 }
+.mc2-story .step .mc2-replay {
+  margin-top: calc(-1 * var(--s-1));
+}
+@media (prefers-reduced-motion: reduce) {
+  .mc2-replay {
+    display: none;
+  }
+}
 .mc2-stage {
   position: relative;
   width: 100%;

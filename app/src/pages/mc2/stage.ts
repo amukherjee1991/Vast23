@@ -113,7 +113,9 @@ export function runLoop(cv: HTMLCanvasElement, draw: (f: Frame) => void, onResiz
     paint(0, true)
   }
   const tick = (t: number) => {
-    const dt = Math.min(0.05, (t - last) / 1000)
+    // rAF time can trail the performance.now() taken when the loop started:
+    // never step backwards (a negative month would index off the data)
+    const dt = Math.max(0, Math.min(0.05, (t - last) / 1000))
     last = t
     paint(dt, false)
     if (running) raf = requestAnimationFrame(tick)

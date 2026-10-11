@@ -4,7 +4,7 @@ import { Question } from '../../components/Layout'
 import { Await, Figure, LegendItem } from '../../components/Figure'
 import { BarList } from '../../charts/BarList'
 import { useJson } from '../../lib/useJson'
-import { fmt } from '../../lib/signals'
+import { fmt, plural } from '../../lib/signals'
 import { CanvasPlot, type AxisType, type CPoint } from './CanvasPlot'
 import { Claim, GraphLegend, GroupGraph, ReasonBars, SizeHistogram, reveal } from './parts'
 import { FLAG_LABEL, rowsOf, type Anomaly, type GroupsOverview, type OwnersTop, type UnitRow } from './types'
@@ -284,7 +284,7 @@ function AnomalyViews({
       </Figure>
       <Figure
         id="mc3-anomaly"
-        title={`${sel.id}: ${cap(sel.flags[0]?.text ?? 'unusual feature mix')}`}
+        title={`${sel.id}: ${cap(plural(sel.flags[0]?.text ?? 'unusual feature mix'))}`}
         subtitle={
           <>
             Rank {sel.rank} of 30 · anomaly percentile {fmt.pct1.format(sel.anomaly_pct)} · {String(sel.features.n_companies)} companies,{' '}
@@ -319,7 +319,7 @@ function AnomalyViews({
           <ul className="mc3-flags" aria-label="Rule flags">
             {sel.flags.map((f) => (
               <li key={f.flag} className="mc3-flag">
-                <strong>{FLAG_LABEL[f.flag] ?? f.flag}</strong> {f.text}
+                <strong>{FLAG_LABEL[f.flag] ?? f.flag}</strong> {plural(f.text)}
               </li>
             ))}
           </ul>

@@ -313,7 +313,7 @@ export const mIdx = (s: string) => {
   return (+y - 2028) * 12 + (+m - 1)
 }
 /** Company ids that are bare negative numbers are anonymised receivers. */
-export const nice = (id: string) => (/^-\d+$/.test(id) ? `receiver ${id}` : id.replace(/\s{2,}/g, ' '))
+export const nice = (id: string) => (/^-\d+$/.test(id) ? `receiver \u2212${id.slice(1)}` : id.replace(/\s{2,}/g, ' '))
 export const short = (id: string, n = 26) => {
   const s = nice(id)
   return s.length > n ? s.slice(0, n - 1) + '…' : s

@@ -46,6 +46,9 @@ interface GalaxyModel {
   slices: GalaxyJson['slices']
   /** In the 306-node giant that survives the ablation. */
   inGiant: Uint8Array
+  /** Nodes that carry the in-stage names of the break. */
+  survivorAnchor: number
+  fragAnchor: number
   /** Normalised distance from the sky's centre (0 centre … 1 rim). */
   rim: Float32Array
   johnSmith: number
@@ -92,6 +95,69 @@ function buildGalaxy(g: GalaxyJson): GalaxyModel {
   })
   const inGiant = new Uint8Array(n)
   for (let i = 0; i < n; i++) if (!rows[i][5] && find(i) === best) inGiant[i] = 1
+  // Position B pulls the break apart so it reads at a glance: the survivor is
+  // re-centred and opened up a little, and every fragment moves as one rigid
+  // piece out past a dark moat (its direction from the centre is kept, its
+  // distance remapped into an outer ring). Removed people keep their old
+  // place, where they burn out as embers.
+  const comp = new Map<number, { sx: number; sy: number; k: number }>()
+  for (let i = 0; i < n; i++) {
+    if (rows[i][5]) continue
+    const r = find(i)
+    const c = comp.get(r) ?? { sx: 0, sy: 0, k: 0 }
+    c.sx += nodes[i].x2 as number
+    c.sy += nodes[i].y2 as number
+    c.k++
+    comp.set(r, c)
+  }
+  const g0 = comp.get(best)!
+  const gcx = g0.sx / g0.k
+  const gcy = g0.sy / g0.k
+  let dMax = 0
+  comp.forEach((c, r) => {
+    if (r !== best) dMax = Math.max(dMax, Math.hypot(c.sx / c.k - 0.5, c.sy / c.k - 0.5))
+  })
+  const R0 = 0.27
+  const R1 = 0.48
+  const shift = new Map<number, [number, number]>()
+  comp.forEach((c, r) => {
+    if (r === best) return
+    const cx = c.sx / c.k - 0.5
+    const cy = c.sy / c.k - 0.5
+    const d = Math.hypot(cx, cy) || 1e-6
+    const d2 = R0 + (d / (dMax || 1)) * (R1 - R0)
+    shift.set(r, [cx * (d2 / d) - cx, cy * (d2 / d) - cy])
+  })
+  for (let i = 0; i < n; i++) {
+    const nd = nodes[i]
+    if (rows[i][5]) {
+      nd.x2 = nd.x
+      nd.y2 = nd.y
+    } else if (inGiant[i]) {
+      nd.x2 = 0.5 + ((nd.x2 as number) - gcx) * 1.35
+      nd.y2 = 0.5 + ((nd.y2 as number) - gcy) * 1.35
+    } else {
+      const [sx, sy] = shift.get(find(i))!
+      nd.x2 = (nd.x2 as number) + sx
+      nd.y2 = (nd.y2 as number) + sy
+    }
+  }
+  // anchors for the in-stage names: the survivor's right-most light, a fragment
+  // on the lower right of the ring, and the most-linked removed name
+  let survivorAnchor = -1
+  let fragAnchor = -1
+  let fragBest = Infinity
+  for (let i = 0; i < n; i++) {
+    if (inGiant[i]) {
+      if (survivorAnchor < 0 || (nodes[i].x2 as number) > (nodes[survivorAnchor].x2 as number)) survivorAnchor = i
+    } else if (!rows[i][5]) {
+      const dd = Math.hypot((nodes[i].x2 as number) - 0.84, (nodes[i].y2 as number) - 0.86)
+      if (dd < fragBest) {
+        fragBest = dd
+        fragAnchor = i
+      }
+    }
+  }
   const rim = new Float32Array(n)
   let maxR = 0
   for (let i = 0; i < n; i++) {
@@ -105,6 +171,8 @@ function buildGalaxy(g: GalaxyJson): GalaxyModel {
     rows,
     slices: g.slices,
     inGiant,
+    survivorAnchor,
+    fragAnchor,
     rim,
     johnSmith: rows.findIndex((r) => r[0] === 'P|John Smith'),
     meta: g,
@@ -292,6 +360,13 @@ const nameOf = (id: string) => id.slice(2)
 
 /* ───────── Opener: the galaxy behind the chapter title ───────── */
 
+/** Lamps named in the opener's sky. Colours are hex copies of tokens.css. */
+const OPENER_NAMES = [
+  { id: 'P|John Smith', text: 'John Smith', sub: '12 companies, likely several people', color: C.amberLit, ring: C.amberLit, dx: -22, dy: -34, phone: true },
+  { id: 'P|John Williams', text: 'John Williams', sub: '10 companies', color: C.amberLit, ring: C.amberLit, dx: -20, dy: 30, phone: false },
+  { id: 'C|Fisher Marine conservation CJSC Transportation', text: 'Fisher Marine conservation', sub: 'Suspect · BG00001.061', color: C.roseLit, ring: C.rose, dx: 26, dy: 34, phone: true },
+] as const
+
 export function GalaxyBackdrop() {
   const data = useJson<GalaxyJson>('mc3/galaxy.json')
   const model = useMemo(() => (data.status === 'ready' ? buildGalaxy(data.data) : null), [data])
@@ -300,10 +375,22 @@ export function GalaxyBackdrop() {
     if (!model || !w) return null
     // the band gives the galaxy its own region: fill it, centred
     const region: Box = [8, 8, w - 8, h - 8]
+    // name the structures in the sky: the borrowed names that hold it together
+    // (amber lamps) and the one suspect slice inside it (a rose verdict ring)
+    const idx = (name: string) => model.rows.findIndex((r) => r[0] === name)
+    const names = OPENER_NAMES.map((o) => ({ ...o, i: idx(o.id) })).filter((o) => o.i >= 0)
+    const lit = new Set(names.map((o) => o.i))
+    const narrow = w < 560
     return {
-      nodeAlpha: (i) => (model.rows[i][3] === 0 ? 0.85 : 0.5),
+      nodeAlpha: (i) => (lit.has(i) ? 1 : model.rows[i][3] === 0 ? 0.8 : 0.45),
+      nodeScale: (i) => (lit.has(i) ? 2.4 : 1),
+      nodeColor: (i) => names.find((o) => o.i === i)?.color ?? model.nodes[i].color,
       edgeAlpha: () => 0.2,
       camera: frame([0.02, 0.06, 0.98, 0.94], w, h, region),
+      rings: names.map((o) => ({ i: o.i, color: o.ring, r: 10 })),
+      labels: names
+        .filter((o) => !narrow || o.phone)
+        .map((o) => ({ i: o.i, text: o.text, sub: o.sub, serif: true, color: o.color, dx: o.dx, dy: o.dy, align: o.dx < 0 ? ('left' as const) : ('right' as const) })),
     }
   }, [model, w, h])
   return (
@@ -315,7 +402,7 @@ export function GalaxyBackdrop() {
           state={state}
           intro="bloom"
           bloom={3}
-          ariaLabel={`The giant business group BG00001 drawn as a galaxy: ${fmt.int.format(model.rows.length)} lights, companies in teal and people in moonlight.`}
+          ariaLabel={`The giant business group BG00001 drawn as a galaxy: ${fmt.int.format(model.rows.length)} lights, companies in teal and people in moonlight. Lit and named: John Smith and John Williams, common names that join many companies, and Fisher Marine conservation, a Suspect group inside it.`}
         />
       )}
     </div>
@@ -489,13 +576,13 @@ const KEYS: StageKeyItem[][] = [
     { color: C.moon, label: 'People' },
   ],
   [
-    { color: C.amberLit, label: 'Removed' },
-    { color: C.tealLit, label: 'Still connected' },
-    { color: C.teal, label: 'Fragments' },
+    { color: C.tealLit, label: 'Still connected', ring: true },
+    { color: C.dim, label: 'Fragments' },
+    { color: C.amber, label: 'Removed, burning out' },
   ],
   [
-    { color: C.tealLit, label: 'The surviving core' },
-    { color: C.teal, label: 'Fragments' },
+    { color: C.tealLit, label: 'The surviving core', ring: true },
+    { color: C.dim, label: 'Fragments' },
   ],
   [
     { color: C.rose, label: 'BG00177 companies' },
@@ -543,6 +630,16 @@ function GalaxyScene({ model, step, w, h, region, on }: { model: GalaxyModel; st
   const states = useMemo<GlowState[]>(() => {
     const co = (i: number) => rows[i][3] === 0
     const gone = (i: number) => rows[i][5] === 1
+    const m = model.meta.after
+    const narrow = w < 560
+    // names in the stage: the survivor, the scattered pieces, the removed names
+    const breakLabels = (embers: boolean): GlowLabel[] => [
+      { i: model.survivorAnchor, text: `${fmt.int.format(m.giant)} still joined`, serif: true, color: C.tealLit, dx: narrow ? 10 : 18, dy: narrow ? -26 : -18 },
+      { i: model.fragAnchor, text: `${fmt.int.format(m.components)} pieces`, serif: true, color: C.moon, sub: narrow ? undefined : `the largest holds ${fmt.int.format(m.second)}`, dx: -8, dy: -22, align: 'left', minAlpha: 0.05 },
+      ...(embers && johnSmith >= 0
+        ? [{ i: johnSmith, text: `${fmt.int.format(m.removed)} names removed`, serif: true, color: C.amberLit, dx: -14, dy: -30, align: 'left' as const, minAlpha: 0.1 }]
+        : []),
+    ]
     return [
       // 1 · the whole giant
       {
@@ -559,31 +656,35 @@ function GalaxyScene({ model, step, w, h, region, on }: { model: GalaxyModel; st
         camera: cam,
         labels: johnSmith >= 0 ? [{ i: johnSmith, text: 'John Smith · 12 companies', lamp: true }] : [],
       },
-      // 3 · removed: the galaxy breaks, the core first, the rim last
+      // 3 · removed: the galaxy breaks. The removed names hold as amber embers
+      // while the survivor gathers bright at the centre and every fragment
+      // drifts out past a dark moat, dimmed to slate; then the embers burn low.
       {
         positions: 'b',
-        duration: 1900,
-        // ease out: the core moves the moment the step lands, the rim follows
+        duration: 1700,
+        // ease out: the pieces move the moment the step lands, the rim follows
         ease: 'out',
-        nodeDelay: (i) => (gone(i) ? 0 : 0.02 + rim[i] * 0.18),
-        nodeAlpha: (i) => (inGiant[i] ? (co(i) ? 0.95 : 0.7) : co(i) ? 0.62 : 0.4),
-        nodeScale: (i) => (inGiant[i] ? 1.15 : 1),
-        nodeColor: (i) => (gone(i) ? C.amberLit : inGiant[i] ? (co(i) ? C.tealLit : C.moon) : co(i) ? C.teal : C.moon),
-        edgeAlpha: () => 0.24,
+        nodeDelay: (i) => (gone(i) ? 0.28 : inGiant[i] ? 0 : 0.02 + rim[i] * 0.14),
+        nodeAlpha: (i) => (gone(i) ? 0.34 : inGiant[i] ? (co(i) ? 1 : 0.85) : co(i) ? 0.3 : 0.18),
+        nodeScale: (i) => (gone(i) ? 1.1 : inGiant[i] ? 1.45 : 0.85),
+        nodeColor: (i) => (gone(i) ? C.amber : inGiant[i] ? (co(i) ? C.tealLit : C.moon) : C.dim),
+        edgeAlpha: (e) => (gone(e.s) || gone(e.t) ? 0 : inGiant[e.s] && inGiant[e.t] ? 0.55 : 0.1),
         camera: cam,
+        labels: breakLabels(true),
       },
       // 4 · the random control: only the surviving giant stays lit
       {
         positions: 'b',
         duration: 900,
-        nodeAlpha: (i) => (inGiant[i] ? (co(i) ? 1 : 0.75) : co(i) ? 0.3 : 0.18),
-        nodeScale: (i) => (inGiant[i] ? 1.3 : 1),
-        nodeColor: (i) => (inGiant[i] ? (co(i) ? C.tealLit : C.moon) : co(i) ? C.teal : C.moon),
-        edgeAlpha: (e) => (inGiant[e.s] && inGiant[e.t] ? 0.5 : 0.1),
+        nodeAlpha: (i) => (gone(i) ? 0 : inGiant[i] ? (co(i) ? 1 : 0.8) : co(i) ? 0.22 : 0.14),
+        nodeScale: (i) => (inGiant[i] ? 1.45 : 0.85),
+        nodeColor: (i) => (gone(i) ? C.amber : inGiant[i] ? (co(i) ? C.tealLit : C.moon) : C.dim),
+        edgeAlpha: (e) => (inGiant[e.s] && inGiant[e.t] ? 0.55 : 0.06),
         camera: cam,
+        labels: breakLabels(false),
       },
     ]
-  }, [rows, inGiant, rim, johnSmith, cam])
+  }, [rows, inGiant, rim, johnSmith, cam, model, w])
   const onHover = useHoverTip((i) => {
     const r = rows[i]
     const slice = model.slices[r[8] - 1]
@@ -608,7 +709,7 @@ function GalaxyScene({ model, step, w, h, region, on }: { model: GalaxyModel; st
           [
             'The giant business group: 7,093 lights, companies teal and people moonlight.',
             'The 651 multi-company people with a top-50 surname lit amber.',
-            'After removing them the galaxy breaks into 1,083 pieces; a 306-node core stays lit at the centre.',
+            'After removing them the galaxy breaks: a 306-node core stays lit at the centre, and 1,083 dim pieces drift out past a dark ring; the removed names burn out in amber.',
             'Only the 306-node core stays lit; removing random people would leave 495 to 1,918.',
           ][step]
         }

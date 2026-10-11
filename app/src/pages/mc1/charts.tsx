@@ -3,7 +3,7 @@ import { useId, type ReactNode } from 'react'
 import { useWidth } from '../../charts/useSize'
 import { useTooltip } from '../../components/Tooltip'
 import { Flag } from '../../components/Flag'
-import { VERDICT_COLOR, VERDICT_FLAG, entityStyle, shapePath, toVerdict } from '../../lib/signals'
+import { VERDICT_COLOR, VERDICT_FLAG, entityStyle, plural, shapePath, toVerdict } from '../../lib/signals'
 import { EDGE_COLOR, EDGE_LABEL, SUSPECT_COLOR, SHORT, type Feature } from './data'
 
 const f2 = d3.format('.2f')
@@ -299,7 +299,7 @@ export function RubricGrid({
                               <span>{hit.basis_w == null ? 'structure only' : f2(hit.basis_w)}</span>
                             </span>
                           )}
-                          <span>{hit ? hit.detail : s.desc}</span>
+                          <span>{hit ? plural(hit.detail) : s.desc}</span>
                         </>,
                       )
                     }

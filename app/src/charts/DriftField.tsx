@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 
 /* DriftField: the home page's sea of trade lights. Each particle is one real
    sampled shipment from the customs graph, drifting east along slow currents;
@@ -16,7 +16,20 @@ export interface DriftSeed {
 const TEAL = [23, 169, 156]
 const AMBER = [255, 201, 90]
 
-export function DriftField({ seeds, ariaLabel }: { seeds: DriftSeed[]; ariaLabel: string }) {
+export function DriftField({
+  seeds,
+  ariaLabel,
+  lanes = [0.6, 0.92],
+  avoid,
+}: {
+  seeds: DriftSeed[]
+  ariaLabel: string
+  /** Vertical extent of the currents, as fractions of the canvas height. */
+  lanes?: [number, number]
+  /** An element the lights must not cross (e.g. text over the field): lights
+      fade almost out behind it, with a soft falloff at its edges. */
+  avoid?: RefObject<HTMLElement | null>
+}) {
   const ref = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -35,12 +48,13 @@ export function DriftField({ seeds, ariaLabel }: { seeds: DriftSeed[]; ariaLabel
     let s = 7
     const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647)
     // Shipments travel in a few currents (bands) that curve with a long swell.
-    const BANDS = [0.6, 0.68, 0.76, 0.84, 0.92]
+    const [l0, l1] = lanes
+    const BANDS = [0, 1, 2, 3, 4].map((k) => l0 + ((l1 - l0) * k) / 4)
     const parts = seeds.map((d) => {
       const b = Math.floor(rnd() * BANDS.length)
       return {
         x: (d.t + rnd() * 0.08) % 1,
-        lane: BANDS[b] + (rnd() - 0.5) * 0.045,
+        lane: BANDS[b] + (rnd() - 0.5) * 0.045 * ((l1 - l0) / 0.32),
         band: b,
         phase: b * 1.7,
         speed: 0.014 + rnd() * 0.012 + (d.fish ? 0.004 : 0),
@@ -67,10 +81,29 @@ export function DriftField({ seeds, ariaLabel }: { seeds: DriftSeed[]; ariaLabel
     const sTeal = sprite(TEAL)
     const sAmber = sprite(AMBER)
 
+    // the quiet rect (canvas px) the lights fade out behind
+    let quiet: { x0: number; y0: number; x1: number; y1: number } | null = null
+    const FALL = 48
+    const measureQuiet = () => {
+      const el = avoid?.current
+      if (!el) return (quiet = null)
+      const a = el.getBoundingClientRect()
+      const c = cv.getBoundingClientRect()
+      quiet = { x0: a.left - c.left - 16, y0: a.top - c.top - 16, x1: a.right - c.left + 16, y1: a.bottom - c.top + 16 }
+    }
+    const hush = (x: number, y: number) => {
+      if (!quiet) return 1
+      const dx = Math.max(quiet.x0 - x, 0, x - quiet.x1)
+      const dy = Math.max(quiet.y0 - y, 0, y - quiet.y1)
+      const d = Math.hypot(dx, dy)
+      return d >= FALL ? 1 : 0.06 + 0.94 * (d / FALL) ** 2
+    }
+
     const resize = () => {
       dpr = Math.min(2, window.devicePixelRatio || 1)
       w = cv.clientWidth
       h = cv.clientHeight
+      measureQuiet()
       cv.width = Math.round(w * dpr)
       cv.height = Math.round(h * dpr)
       frame(0)
@@ -96,13 +129,13 @@ export function DriftField({ seeds, ariaLabel }: { seeds: DriftSeed[]; ariaLabel
         const x = p.x * w
         const twinkle = 0.65 + 0.35 * Math.sin(now * 1.3 + p.tw)
         const R = p.r * (p.fish ? 3.6 : 2.6)
-        g.globalAlpha = (p.fish ? 0.95 : 0.6) * twinkle
+        g.globalAlpha = (p.fish ? 0.95 : 0.6) * twinkle * hush(x, y)
         g.drawImage(p.fish ? sAmber : sTeal, x - R, y - R, R * 2, R * 2)
       }
     }
 
     const loop = (t: number) => {
-      const dt = Math.min(0.05, (t - last) / 1000)
+      const dt = Math.max(0, Math.min(0.05, (t - last) / 1000))
       last = t
       frame(dt)
       if (running) raf = requestAnimationFrame(loop)
@@ -120,6 +153,7 @@ export function DriftField({ seeds, ariaLabel }: { seeds: DriftSeed[]; ariaLabel
 
     const ro = new ResizeObserver(resize)
     ro.observe(cv)
+    if (avoid?.current) ro.observe(avoid.current)
     const io = new IntersectionObserver(([e]) => (e.isIntersecting ? start() : stop()))
     io.observe(cv)
     const vis = () => (document.hidden ? stop() : start())
@@ -131,7 +165,8 @@ export function DriftField({ seeds, ariaLabel }: { seeds: DriftSeed[]; ariaLabel
       io.disconnect()
       document.removeEventListener('visibilitychange', vis)
     }
-  }, [seeds])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seeds, lanes[0], lanes[1]])
 
   return <canvas ref={ref} role="img" aria-label={ariaLabel} style={{ display: 'block', width: '100%', height: '100%' }} />
 }

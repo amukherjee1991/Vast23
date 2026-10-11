@@ -17,6 +17,7 @@ export function useBeats(sky: Sky, d: MC1) {
       i: sky.index.get(k)!,
       short: SHORT[k],
       verdict: d.suspects.suspects.find((s) => s.k === k)!.verdict,
+      confidence: d.suspects.suspects.find((s) => s.k === k)!.confidence,
     }))
     return { lamps, beats: buildBeats(sky, lamps, (r, i) => `${r} · ${label(d, sky.keys[i])}`) }
   }, [sky, d])

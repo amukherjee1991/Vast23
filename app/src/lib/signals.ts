@@ -105,3 +105,11 @@ export const fmt = {
   pct1: new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 1 }),
   dec2: new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }),
 }
+
+/** Pipeline text writes counts as "1 owner(s)"; read the number and say it
+    properly: "1 owner", "3 owners", "2 strong flags". */
+export function plural(text: string): string {
+  return text.replace(/\b(\d[\d,]*(?:\.\d+)?)((?:\s+[A-Za-z][\w-]*)*?\s+)([A-Za-z][\w-]*)\(s\)/g, (_, n: string, mid: string, w: string) =>
+    `${n}${mid}${w}${Number(n.replace(/,/g, '')) === 1 ? '' : 's'}`,
+  ).replace(/\b1 owner control\b/g, '1 owner controls')
+}

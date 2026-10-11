@@ -31,6 +31,23 @@ export interface GlowLabel {
   lamp?: boolean
   /** Which side of the node the text sits on (default 'right'). */
   align?: 'left' | 'right'
+  /** Story lettering: Bodoni Moda italic (weight 500, 17px) instead of the
+      12px Archivo data label, for naming structures in the stage. */
+  serif?: boolean
+  /** A second, smaller line under a serif label (Archivo 12px, secondary ink). */
+  sub?: string
+  /** Offset of the text from the node in CSS px. Past 14px a hairline leader
+      runs from the node to the text. */
+  dx?: number
+  dy?: number
+  /** Text colour override (hex). */
+  color?: string
+  /** The label shows while its node is at least this bright (default 0.3). */
+  minAlpha?: number
+  /** Callout column: every label with this flag is set in one column just
+      past the right-most of their lights, in the lights' top-to-bottom order
+      and spaced so they never touch, each with a leader to its light. */
+  column?: boolean
 }
 /** A thin lamp-coloured ring around node i (e.g. a verdict), drawn over the
     glow without additive blending; it fades with the node. */
@@ -96,6 +113,8 @@ function withAlpha(hex: string, a: number) {
   return c.formatRgb()
 }
 
+const labelKey = (L: GlowLabel) => `${L.i}|${L.text}`
+
 const reduceMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const EASE = { inOut: d3.easeCubicInOut, out: d3.easeCubicOut } as const
 
@@ -139,6 +158,7 @@ export const GlowStage = forwardRef<
     h: 0,
     dpr: 1,
     labels: [] as GlowLabel[],
+    labelsFrom: new Set<string>(),
     rings: [] as GlowRing[],
     ringsFrom: [] as GlowRing[],
     eDelay: new Float32Array(0),
@@ -237,25 +257,82 @@ export const GlowStage = forwardRef<
       for (const R of A.ringsFrom) if (!now.has(R.i)) drawRing(R, 1 - A.k)
       for (const R of A.rings) drawRing(R, was.has(R.i) ? 1 : A.k)
     }
-    // labels: moonlight text with a water halo
+    // labels: moonlight text with a water halo; new ones fade in with the move
     g.globalCompositeOperation = 'source-over'
-    g.globalAlpha = 1
-    g.font = '500 12px Archivo, ui-sans-serif, system-ui, sans-serif'
     g.textBaseline = 'middle'
     g.lineJoin = 'round'
+    const SERIF = 'italic 500 17px "Bodoni Moda", Didot, Georgia, serif'
+    const SANS = '500 12px Archivo, ui-sans-serif, system-ui, sans-serif'
+    // lay out the callout column first (screen space, so it holds at any size)
+    const colPos = new Map<GlowLabel, [number, number, boolean]>()
+    const col = A.labels.filter((L) => L.column && A.cur.a[L.i] >= (L.minAlpha ?? 0.3))
+    if (col.length) {
+      const pts = col.map((L) => ({ L, p: toScreen(A.cur.x[L.i], A.cur.y[L.i]) })).sort((a, b) => a.p[1] - b.p[1])
+      const gap = A.w < 560 ? 26 : 44
+      g.font = SERIF
+      const tw = Math.max(...col.map((L) => g.measureText(L.text).width))
+      // the column sits right of the lights, or left of them if it would leave the stage
+      const flip = Math.max(...pts.map((d) => d.p[0])) + gap + tw > A.w - 8
+      const cx = flip ? Math.min(...pts.map((d) => d.p[0])) - gap : Math.max(...pts.map((d) => d.p[0])) + gap
+      const step = A.w < 480 ? 24 : 38
+      const ys = pts.map((d) => d.p[1])
+      // centre the stack on the lights, then push apart top to bottom
+      for (let k = 1; k < ys.length; k++) ys[k] = Math.max(ys[k], ys[k - 1] + step)
+      const shift = (pts.reduce((t, d) => t + d.p[1], 0) - ys.reduce((t, y) => t + y, 0)) / ys.length
+      pts.forEach((d, k) => colPos.set(d.L, [cx, ys[k] + shift - (A.w < 480 ? 0 : 6), flip]))
+    }
     for (const L of A.labels) {
-      if (A.cur.a[L.i] < 0.3) continue
+      if (A.cur.a[L.i] < (L.minAlpha ?? 0.3)) continue
+      const fade = A.labelsFrom.has(labelKey(L)) ? 1 : A.k
+      if (fade < 0.02) continue
       const [x, y] = toScreen(A.cur.x[L.i], A.cur.y[L.i])
+      g.font = L.serif ? SERIF : SANS
+      const tw = g.measureText(L.text).width
+      const cp = colPos.get(L)
+      const off = cp != null || L.dx != null || L.dy != null
+      const ox = cp ? cp[0] - x : L.dx ?? 0
+      const oy = cp ? cp[1] - y : L.dy ?? 0
       // flip left when asked, or when the label would run off the right edge
-      const left = L.align === 'left' || (L.align == null && x + 10 + g.measureText(L.text).width > A.w - 4)
-      const tx = left ? x - 10 : x + 10
+      let left = (cp ? cp[2] : L.align === 'left') || (L.align == null && !off && x + 10 + tw > A.w - 4)
+      let tx = off ? x + ox : left ? x - 10 : x + 10
+      if (off && !cp) {
+        // an offset label that would leave the stage swings to the other side
+        const wide = Math.max(tw, L.sub && A.w >= 480 ? g.measureText(L.sub).width * 0.8 : 0)
+        if (!left && tx + wide > A.w - 8) {
+          left = true
+          tx = x - Math.abs(ox)
+        } else if (left && tx - wide < 8) {
+          left = false
+          tx = x + Math.abs(ox)
+        }
+      }
+      const ty = y + oy
+      if (off && Math.hypot(ox, oy) > 14) {
+        // a hairline leader from the light to the lettering
+        g.globalAlpha = 0.55 * fade
+        g.strokeStyle = '#7d95a8'
+        g.lineWidth = 1
+        g.beginPath()
+        g.moveTo(x + Math.sign(ox) * 4, y + Math.sign(oy) * 4)
+        g.lineTo(tx - (left ? -4 : 4), ty)
+        g.stroke()
+      }
+      g.globalAlpha = fade
       g.textAlign = left ? 'end' : 'start'
       g.strokeStyle = 'rgba(5,12,20,0.92)'
       g.lineWidth = 4
-      g.strokeText(L.text, tx, y)
-      g.fillStyle = L.lamp ? A.colors[L.i] : '#e7eff6'
-      g.fillText(L.text, tx, y)
+      g.strokeText(L.text, tx, ty)
+      g.fillStyle = L.color ?? (L.lamp ? A.colors[L.i] : '#e7eff6')
+      g.fillText(L.text, tx, ty)
+      if (L.sub && A.w >= 480) {
+        g.font = '400 12px Archivo, ui-sans-serif, system-ui, sans-serif'
+        const sy = ty + 16
+        g.strokeText(L.sub, tx, sy)
+        g.fillStyle = '#a8bccc'
+        g.fillText(L.sub, tx, sy)
+      }
     }
+    g.globalAlpha = 1
   }
 
   function rebuildTree() {
@@ -347,6 +424,7 @@ export const GlowStage = forwardRef<
     A.rings = state.rings ?? []
     A.camFrom = [...A.cam]
     A.camTo = state.camera ? [...state.camera] : [0, 0, 1, 1]
+    A.labelsFrom = fresh ? new Set() : new Set(A.labels.map(labelKey))
     A.labels = state.labels ?? []
     A.dur = reduceMotion() || fresh ? 0 : state.duration ?? 1200
     A.ease = EASE[state.ease ?? 'inOut']
@@ -393,7 +471,13 @@ export const GlowStage = forwardRef<
       rebuildTree()
     })
     ro.observe(el)
-    return () => ro.disconnect()
+    // serif labels: redraw once the italic face has arrived
+    let live = true
+    document.fonts?.load('italic 500 17px "Bodoni Moda"').then(() => live && draw(), () => {})
+    return () => {
+      live = false
+      ro.disconnect()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

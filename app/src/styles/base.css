@@ -42,6 +42,13 @@ h4 {
   text-wrap: balance;
   color: var(--ink);
 }
+/* Bodoni Moda's hairlines break up on the dark below ~28px: the small serif
+   settings use weight 500 with the optical size axis on (opsz follows the
+   font size, so small text gets the sturdier cut). */
+h3,
+h4 {
+  font-weight: 500;
+}
 
 p {
   margin: 0;
@@ -106,4 +113,8 @@ button {
     animation-iteration-count: 1 !important;
     transition-property: opacity, color, background-color, border-color !important;
   }
+}
+
+.nowrap {
+  white-space: nowrap;
 }

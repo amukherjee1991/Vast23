@@ -240,6 +240,7 @@ export interface SuspectLamp {
   i: number
   short: string
   verdict: string
+  confidence?: string
 }
 
 export type BeatId =
@@ -310,6 +311,19 @@ export function buildBeats(sky: Sky, lamps: SuspectLamp[], candLabel: (rank: num
     edgeAlpha: E((e) => (e.kind === 1 ? 0.7 : e.kind === 2 ? 0 : 0.05)),
     camera: openerCam(sky.full),
     rings: rings(10),
+    // each suspect named in serif beside its lamp, the four set in one callout
+    // column so the names never stack on the knot of the layer
+    labels: lamps.map(
+      (l) =>
+        ({
+          i: l.i,
+          text: l.short,
+          sub: l.confidence ? `${l.verdict} · ${l.confidence.toLowerCase()} confidence` : l.verdict,
+          serif: true,
+          color: (VERDICT_HEX[l.verdict] ?? VERDICT_HEX.Possible).core,
+          column: true,
+        }) satisfies GlowLabel,
+    ),
   })
 
   // 1 · the whole graph

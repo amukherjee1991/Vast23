@@ -13,16 +13,23 @@ import { FONT_MONO, FONT_UI, HEX, glowSprite, haloText, monthLabel, prefersReduc
    Each light is about 50 companies, drawn as a trail along the 84-month axis
    from its first month of trade to its last, in two bands: shippers above,
    receivers below, each trail at its own height in the band like a ship's
-   light in a long exposure: shippers draw long streaks, receivers short
-   sparks. Trail length is the measured span (lifespan histogram);
-   where a trail starts is modelled from the lifecycle counts (persistent and
-   exited traders start in the first month, entrants run to the last month,
-   transients sit in between). A playhead draws the trails month by month. */
+   light in a long exposure. At rest every trail is drawn at its full span, so
+   the claim is visible at once: shippers draw long streaks across the years,
+   receivers are mostly sparks. A one-month company is a spark only; the
+   long-lived receiver minority is dimmed so the typical receiver dominates.
+   The two median spans are marked on the time axis. A replay button sweeps
+   the years month by month; it is never the default state.
+
+   Trail length is the measured span (lifespan histogram); where a trail
+   starts is modelled from the lifecycle counts (persistent and exited traders
+   of a year or more start in the first month, entrants run to the last month,
+   shorter-lived and transient traders sit in between). */
 
 /** Companies represented by one trail. */
 const PER_CO = 50
-const LIFE_MONTH_S = 0.12
-const LIFE_HOLD_S = 2.4
+const LIFE_MONTH_S = 0.06
+/** Receivers trading longer than this are the dimmed minority. */
+const LONG_RECEIVER = 12
 
 type Hist = CompaniesTop['lifespan_histogram']
 type Cycle = Record<string, number>
@@ -47,7 +54,8 @@ function trails(hist: Hist, counts: number[], cycle: Cycle, seed: number) {
     else {
       // spans that cannot touch both ends: pick a lifecycle by its share
       const t = rnd() * (w.early + w.entrant + w.transient || 1)
-      b = t < w.early ? 0 : t < w.early + w.entrant ? 84 - L : 1 + Math.floor(rnd() * Math.max(1, 83 - L))
+      const mid = 1 + Math.floor(rnd() * Math.max(1, 83 - L))
+      b = t < w.early ? (L >= 12 ? 0 : mid) : t < w.early + w.entrant ? 84 - L : mid
     }
     out.push({ L, b, row: 0 })
   }
@@ -61,12 +69,18 @@ export function LifeScene({
   cycles,
   fishOnly,
   labels,
+  medians,
+  replay,
   active,
 }: {
   hist: Hist
   cycles: { shipper: Cycle; receiver: Cycle }
   fishOnly: boolean
   labels: { shipper: [string, string]; receiver: [string, string] }
+  /** Median spans in months, marked on the axis (null hides the marks). */
+  medians: { shipper: number; receiver: number } | null
+  /** Bump to sweep the years once from 2028; 0 = rest. */
+  replay: number
   active: boolean
 }) {
   const cvRef = useRef<HTMLCanvasElement>(null)
@@ -80,65 +94,92 @@ export function LifeScene({
   )
   const labelRef = useRef(labels)
   labelRef.current = labels
-  const restart = useRef<() => void>(() => {})
+  const medRef = useRef(medians)
+  medRef.current = medians
+  const sweep = useRef({ on: false, T: 84 })
+
+  // at rest the scene is a still frame; only a replay runs the loop
+  useEffect(() => {
+    if (!active) sweep.current = { on: false, T: 84 }
+    loopRef.current?.setActive(active && sweep.current.on)
+    loopRef.current?.redraw()
+  }, [active, medians])
 
   useEffect(() => {
-    if (active) restart.current()
-    loopRef.current?.setActive(active)
-  }, [active])
+    if (!replay || !active || prefersReducedMotion()) return
+    sweep.current = { on: true, T: 0 }
+    loopRef.current?.setActive(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replay])
 
   useEffect(() => {
     const cv = cvRef.current
     if (!cv) return
     const sBlue = glowSprite(HEX.litBlue, 0.85)
     const sRose = glowSprite(HEX.litRose, 0.85)
-    let T = 0
-    restart.current = () => {
-      T = 0
-    }
     const draw = ({ g, w, h, dt, still }: { g: CanvasRenderingContext2D; w: number; h: number; dt: number; still: boolean }) => {
-      if (!still) T = (T + dt / LIFE_MONTH_S) % (84 + LIFE_HOLD_S / LIFE_MONTH_S)
-      const now = still ? 84 : Math.min(T, 84)
+      const S = sweep.current
+      if (S.on && !still) {
+        S.T = Math.min(84, S.T + dt / LIFE_MONTH_S)
+        if (S.T >= 84) {
+          S.on = false
+          // the sweep is done: hold the full frame and stop the loop
+          queueMicrotask(() => loopRef.current?.setActive(false))
+        }
+      }
+      const now = S.on ? S.T : 84
       const x0 = 16
       const x1 = w - 16
       const X = (m: number) => x0 + (m / 84) * (x1 - x0)
-      const bands: [typeof lights.shipper, number, number, string, HTMLCanvasElement, [string, string]][] = [
-        [lights.shipper, Math.max(h * 0.14, 68), h * 0.48, HEX.litBlue, sBlue, labelRef.current.shipper],
-        [lights.receiver, h * 0.55, h * 0.87, HEX.litRose, sRose, labelRef.current.receiver],
+      const bands: ['shipper' | 'receiver', typeof lights.shipper, number, number, string, HTMLCanvasElement, [string, string]][] = [
+        ['shipper', lights.shipper, Math.max(h * 0.14, 68), h * 0.47, HEX.litBlue, sBlue, labelRef.current.shipper],
+        ['receiver', lights.receiver, h * 0.53, h * 0.82, HEX.litRose, sRose, labelRef.current.receiver],
       ]
       const head = Math.max(1.8, Math.min(2.8, w / 360))
-      for (const [ls, y0, y1, col, spr, [name, sub]] of bands) {
+      for (const [role, ls, y0, y1, col, spr, [name, sub]] of bands) {
         const top = y0 + 20
         const span = y1 - top
+        const rec = role === 'receiver'
         g.globalCompositeOperation = 'lighter'
         g.lineCap = 'round'
         g.strokeStyle = col
-        g.lineWidth = 1
-        // the trails: lit as far as the playhead has reached
-        g.globalAlpha = 0.3
-        g.beginPath()
-        for (const p of ls) {
-          if (now <= p.b) continue
-          const y = top + p.row * span
-          g.moveTo(X(p.b), y)
-          g.lineTo(X(Math.min(p.b + p.L, now)), y)
+        // trails of more than a month, lit as far as the playhead has reached;
+        // long-lived receivers are the dim minority
+        const stroke = (keep: (L: number) => boolean, alpha: number, width: number) => {
+          g.globalAlpha = alpha
+          g.lineWidth = width
+          g.beginPath()
+          for (const p of ls) {
+            if (p.L < 2 || !keep(p.L) || now <= p.b) continue
+            const y = top + p.row * span
+            g.moveTo(X(p.b), y)
+            g.lineTo(X(Math.min(p.b + p.L, now)), y)
+          }
+          g.stroke()
         }
-        g.stroke()
-        // a light at each trail's tip: bright while it trades, a small ember after
+        if (rec) {
+          // brightness falls with span: the typical (short) receiver dominates
+          stroke((L) => L > LONG_RECEIVER, 0.06, 1)
+          stroke((L) => L > 3 && L <= LONG_RECEIVER, 0.3, 1.2)
+          stroke((L) => L <= 3, 0.75, 1.6)
+        } else stroke(() => true, 0.34, 1.2)
+        // a light at each trail's tip: one-month traders are a spark only
         for (const p of ls) {
           if (now <= p.b) continue
+          if (rec && p.L > LONG_RECEIVER) continue
           const end = p.b + p.L
-          const alive = !still && now < end
-          const x = X(Math.min(end, now))
+          const alive = S.on && now < end
+          const spark = p.L === 1
+          const x = spark ? X(p.b + 0.5) : X(Math.min(end, now))
           const y = top + p.row * span
-          const R = head * (alive ? 2.6 : 1.7)
-          g.globalAlpha = alive ? 0.85 : 0.4
+          const R = head * (alive ? 2.6 : spark ? 2.6 : 1.7)
+          g.globalAlpha = alive ? 0.85 : spark ? 0.95 : rec ? (p.L <= 3 ? 0.6 : 0.3) : 0.4
           g.drawImage(spr, x - R, y - R, R * 2, R * 2)
         }
         haloText(g, name, x0, y0, HEX.ink, `600 14px ${FONT_UI}`)
         g.font = `600 14px ${FONT_UI}`
         const nw = g.measureText(name).width
-        haloText(g, sub, x0 + nw + 10, y0, HEX.ink2, `400 12px ${FONT_MONO}`)
+        if (w - x0 - nw - 10 > g.measureText(sub).width) haloText(g, sub, x0 + nw + 10, y0, HEX.ink2, `400 12px ${FONT_MONO}`)
       }
       // time axis
       const ya = h * 0.93
@@ -158,19 +199,44 @@ export function LifeScene({
         g.stroke()
         if (y < 7 && (w > 480 || y % 2 === 0)) haloText(g, String(2028 + y), x + 4, ya + 12, HEX.ink3, `400 12px ${FONT_UI}`)
       }
-      if (!still && now < 84) {
+      // the two median spans, measured from the axis origin: 59 months vs 3
+      const med = medRef.current
+      if (med) {
+        const mark = (m: number, y: number, c: string, text: string) => {
+          g.globalAlpha = 1
+          g.strokeStyle = c
+          g.lineWidth = 2
+          g.beginPath()
+          g.moveTo(X(0), y)
+          g.lineTo(X(m), y)
+          g.stroke()
+          g.lineWidth = 1
+          g.beginPath()
+          g.moveTo(X(0), y - 4)
+          g.lineTo(X(0), y + 4)
+          g.moveTo(X(m), y - 4)
+          g.lineTo(X(m), y + 4)
+          g.stroke()
+          haloText(g, text, X(m) + 8, y, c, `500 12px ${FONT_UI}`)
+        }
+        const narrow = w < 480
+        mark(med.shipper, ya - 30, HEX.litBlue, narrow ? `median ${med.shipper} mo` : `Shippers’ median span · ${med.shipper} months`)
+        mark(med.receiver, ya - 14, HEX.litRose, narrow ? `median ${med.receiver} mo` : `Receivers’ median span · ${med.receiver} months`)
+      }
+      if (S.on && now < 84) {
         const px = X(now)
         g.strokeStyle = HEX.moon
         g.globalAlpha = 0.6
+        g.lineWidth = 1
         g.beginPath()
         g.moveTo(px, Math.max(h * 0.14, 68) + 14)
         g.lineTo(px, ya + 2)
         g.stroke()
-        haloText(g, monthLabel(Math.min(83, Math.floor(now))), Math.min(Math.max(px, x0 + 40), x1 - 40), ya - 12, HEX.moon, `400 12px ${FONT_MONO}`, 'center')
+        haloText(g, monthLabel(Math.min(83, Math.floor(now))), Math.min(Math.max(px, x0 + 40), x1 - 40), ya - 46, HEX.moon, `400 12px ${FONT_MONO}`, 'center')
       }
     }
     const loop = runLoop(cv, draw)
-    loop.setActive(active)
+    loop.setActive(active && sweep.current.on)
     loopRef.current = loop
     return () => loop.destroy()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -182,13 +248,14 @@ export function LifeScene({
         ref={cvRef}
         className="mc2-scene__cv"
         role="img"
-        aria-label={`Each trail is about ${PER_CO} companies, drawn from its first month of trade to its last; length is the measured span, start month is modelled from the lifecycle counts. ${labels.shipper.join(', ')}. ${labels.receiver.join(', ')}.`}
+        aria-label={`Each trail is about ${PER_CO} companies, drawn from its first month of trade to its last; length is the measured span, start month is modelled from the lifecycle counts. One-month companies are single sparks; receivers trading more than a year are dimmed. ${labels.shipper.join(', ')}. ${labels.receiver.join(', ')}.${medians ? ` Median span: shippers ${medians.shipper} months, receivers ${medians.receiver}.` : ''}`}
       />
       <div className="stage-head">
         <StageKey
           items={[
             { color: HEX.litBlue, label: 'Shipper trail', line: true },
             { color: HEX.litRose, label: 'Receiver trail', line: true },
+            { color: HEX.litRose, label: 'One month only' },
           ]}
         />
         <p className="stage-count">

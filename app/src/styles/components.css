@@ -18,6 +18,8 @@
   border-bottom: 1px solid color-mix(in oklab, var(--rule) 70%, transparent);
 }
 .wordmark {
+  font-weight: 500;
+  font-optical-sizing: auto;
   display: inline-flex;
   align-items: center;
   gap: var(--s-3);
@@ -262,6 +264,7 @@
   min-width: 0;
 }
 .hoist__name {
+  font-weight: 500;
   font-size: var(--fs-card);
   line-height: 1.15;
 }
@@ -326,54 +329,106 @@
   }
 }
 
-/* Compact hoist (the chapter openers): positions in at most two columns, each
-   flag hanging on a short line from a hairline halyard above it. */
+/* Compact hoist (the chapter openers): one quiet column. Each finding is a
+   real button on a hairline halyard: a small verdict flag, the name, and the
+   verdict with its confidence on one unbroken line. The stage names the
+   lamps; this list is the keyboard and screen-reader way in. */
 .hoist--compact {
   padding-left: 0;
+  max-width: 30rem;
 }
 .hoist--compact .hoist__list {
-  grid-template-columns: repeat(auto-fit, minmax(max(15rem, calc((100% - var(--s-6)) / 2)), 1fr));
-  gap: var(--s-4) var(--s-6);
+  position: relative;
+  gap: 0;
+}
+.hoist--compact .hoist__list::before {
+  /* the halyard through the flags */
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--rule-strong);
 }
 .hoist--compact .hoist__pos {
-  grid-template-columns: 36px minmax(0, 1fr);
-  gap: var(--s-3);
-  padding-top: var(--s-4);
-  border-top: 1px solid var(--rule-strong);
+  display: block;
 }
 .hoist--compact .hoist__pos::before {
+  content: none;
+}
+.hoist__row {
+  all: unset;
+  box-sizing: border-box;
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  column-gap: var(--s-3);
+  align-items: center;
+  width: 100%;
+  min-height: var(--hit);
+  padding: 6px 0 6px var(--s-4);
+  cursor: pointer;
+  transition: transform var(--t-press) var(--ease-out);
+}
+.hoist__row::before {
+  /* a short line from the halyard to the flag */
+  content: "";
+  position: absolute;
   left: 0;
-  top: 0;
-  width: 1px;
-  height: var(--s-4);
-  border-top: 0;
-  background: var(--ink-3);
+  top: 50%;
+  width: var(--s-4);
+  border-top: 1px solid var(--rule-strong);
+}
+.hoist__row:active {
+  transform: scale(0.985);
+}
+.hoist__row:focus-visible {
+  outline: 2px solid var(--moon);
+  outline-offset: 2px;
+  border-radius: var(--radius);
 }
 .hoist--compact .hoist__flag {
-  padding-top: 2px;
+  grid-row: span 2;
+  padding: 0;
+  filter: none;
 }
 .hoist--compact .hoist__name {
-  font-size: clamp(1.125rem, 1rem + 0.3vw, 1.25rem);
-  line-height: 1.2;
-}
-.hoist--compact .hoist__btn {
-  /* long successor pairs: two lines, the full name stays in the accessible text */
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--ink);
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  transition: text-decoration-color var(--t-ui) ease;
 }
 .hoist--compact .hoist__verdict {
-  gap: 5px;
-  font-size: var(--fs-label);
-}
-.hoist--compact .hoist__reason {
-  max-width: none;
+  display: block;
   font-size: var(--fs-micro);
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  overflow: hidden;
+  line-height: 1.35;
+  color: var(--ink-2);
+}
+@media (hover: hover) and (pointer: fine) {
+  .hoist__row:hover .hoist__name {
+    text-decoration-color: currentColor;
+  }
+  .hoist__row:hover .hoist__flag svg {
+    transform: skewY(-3deg) scaleX(1.04);
+  }
+}
+.hoist__phrase {
+  white-space: nowrap;
+}
+.hoist__id {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--ink-3);
 }
 
 /* ───────── Chapter page + rail ───────── */
@@ -569,7 +624,7 @@
   }
   .q__answer--pin {
     position: sticky;
-    top: calc(var(--header-h) + var(--s-5));
+    top: var(--answer-top, calc(var(--header-h) + var(--s-5)));
   }
   .q__evidence {
     grid-column: 2;
@@ -779,6 +834,7 @@ code {
   gap: 2px;
 }
 .verdict__label {
+  white-space: nowrap;
   font-weight: 600;
   font-size: var(--fs-small);
   color: var(--ink);
@@ -787,6 +843,7 @@ code {
   gap: var(--s-2);
 }
 .pennants {
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -1007,6 +1064,8 @@ code {
   border-left-color: var(--moon);
 }
 .step__title {
+  font-weight: 500;
+  font-optical-sizing: auto;
   font-family: var(--font-display);
   font-size: var(--fs-card);
   line-height: 1.15;
@@ -1216,6 +1275,7 @@ code {
   max-width: 46rem;
 }
 .bridge__takeaway {
+  font-optical-sizing: auto;
   font-family: var(--font-display);
   font-size: clamp(1.75rem, 1.15rem + 2.3vw, 3.25rem);
   line-height: 1.1;
@@ -1271,6 +1331,8 @@ code {
   }
 }
 .band__kicker {
+  font-weight: 500;
+  font-optical-sizing: auto;
   font-family: var(--font-display);
   font-style: italic;
   font-size: var(--fs-kicker);
@@ -1284,4 +1346,11 @@ code {
     min-height: 56svh;
     padding: var(--s-8) var(--s-4);
   }
+}
+
+/* A number's sign set in Archivo: Bodoni Moda's minus is a hairline. */
+.minus {
+  font-family: var(--font);
+  font-style: normal;
+  font-weight: 400;
 }
