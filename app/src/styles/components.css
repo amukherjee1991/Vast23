@@ -1331,8 +1331,11 @@ code {
   }
 }
 .band__kicker {
-  font-weight: 500;
-  font-optical-sizing: auto;
+  /* Bodoni's display hairlines vanish on the dark at this size: pin a small
+     optical size (sturdier cut) and a heavier weight. */
+  font-weight: 600;
+  font-optical-sizing: none;
+  font-variation-settings: "opsz" 11;
   font-family: var(--font-display);
   font-style: italic;
   font-size: var(--fs-kicker);

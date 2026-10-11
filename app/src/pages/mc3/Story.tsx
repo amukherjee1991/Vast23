@@ -363,7 +363,7 @@ const nameOf = (id: string) => id.slice(2)
 /** Lamps named in the opener's sky. Colours are hex copies of tokens.css. */
 const OPENER_NAMES = [
   { id: 'P|John Smith', text: 'John Smith', sub: '12 companies, likely several people', color: C.amberLit, ring: C.amberLit, dx: -22, dy: -34, phone: true },
-  { id: 'P|John Williams', text: 'John Williams', sub: '10 companies', color: C.amberLit, ring: C.amberLit, dx: -20, dy: 30, phone: false },
+  { id: 'P|John Williams', text: 'John Williams', sub: '10 companies', color: C.amberLit, ring: C.amberLit, dx: -20, dy: 30, phone: true },
   { id: 'C|Fisher Marine conservation CJSC Transportation', text: 'Fisher Marine conservation', sub: 'Suspect · BG00001.061', color: C.roseLit, ring: C.rose, dx: 26, dy: 34, phone: true },
 ] as const
 
@@ -671,6 +671,8 @@ function GalaxyScene({ model, step, w, h, region, on }: { model: GalaxyModel; st
         edgeAlpha: (e) => (gone(e.s) || gone(e.t) ? 0 : inGiant[e.s] && inGiant[e.t] ? 0.55 : 0.1),
         camera: cam,
         labels: breakLabels(true),
+        // the names arrive once the pieces have separated
+        labelsAfter: 0.6,
       },
       // 4 · the random control: only the surviving giant stays lit
       {

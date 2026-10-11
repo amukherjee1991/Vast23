@@ -58,6 +58,9 @@ export interface GlowRing {
   r?: number
 }
 export interface GlowState {
+  /** New labels wait until this share of the transition (0..1) before fading in,
+      so they never point at structure that has not formed yet. */
+  labelsAfter?: number
   nodeAlpha: (i: number) => number
   nodeScale?: (i: number) => number
   nodeColor?: (i: number) => string
@@ -158,6 +161,7 @@ export const GlowStage = forwardRef<
     h: 0,
     dpr: 1,
     labels: [] as GlowLabel[],
+    labelsAfter: 0,
     labelsFrom: new Set<string>(),
     rings: [] as GlowRing[],
     ringsFrom: [] as GlowRing[],
@@ -261,7 +265,7 @@ export const GlowStage = forwardRef<
     g.globalCompositeOperation = 'source-over'
     g.textBaseline = 'middle'
     g.lineJoin = 'round'
-    const SERIF = 'italic 500 17px "Bodoni Moda", Didot, Georgia, serif'
+    const SERIF = 'italic 600 17px "Bodoni Moda", Didot, Georgia, serif'
     const SANS = '500 12px Archivo, ui-sans-serif, system-ui, sans-serif'
     // lay out the callout column first (screen space, so it holds at any size)
     const colPos = new Map<GlowLabel, [number, number, boolean]>()
@@ -283,7 +287,8 @@ export const GlowStage = forwardRef<
     }
     for (const L of A.labels) {
       if (A.cur.a[L.i] < (L.minAlpha ?? 0.3)) continue
-      const fade = A.labelsFrom.has(labelKey(L)) ? 1 : A.k
+      const after = A.labelsAfter
+      const fade = A.labelsFrom.has(labelKey(L)) ? 1 : after > 0 ? Math.max(0, (A.k - after) / (1 - after)) : A.k
       if (fade < 0.02) continue
       const [x, y] = toScreen(A.cur.x[L.i], A.cur.y[L.i])
       g.font = L.serif ? SERIF : SANS
@@ -319,14 +324,21 @@ export const GlowStage = forwardRef<
       }
       g.globalAlpha = fade
       g.textAlign = left ? 'end' : 'start'
-      g.strokeStyle = 'rgba(5,12,20,0.92)'
-      g.lineWidth = 4
+      // a soft pool of water under the lettering, then a crisp edge
+      g.strokeStyle = 'rgba(5,12,20,0.94)'
+      g.shadowColor = 'rgba(5,12,20,0.95)'
+      g.shadowBlur = 10
+      g.lineWidth = 6
+      g.strokeText(L.text, tx, ty)
+      g.shadowBlur = 0
+      g.lineWidth = 3
       g.strokeText(L.text, tx, ty)
       g.fillStyle = L.color ?? (L.lamp ? A.colors[L.i] : '#e7eff6')
       g.fillText(L.text, tx, ty)
       if (L.sub && A.w >= 480) {
         g.font = '400 12px Archivo, ui-sans-serif, system-ui, sans-serif'
         const sy = ty + 16
+        g.lineWidth = 5
         g.strokeText(L.sub, tx, sy)
         g.fillStyle = '#a8bccc'
         g.fillText(L.sub, tx, sy)
@@ -426,6 +438,7 @@ export const GlowStage = forwardRef<
     A.camTo = state.camera ? [...state.camera] : [0, 0, 1, 1]
     A.labelsFrom = fresh ? new Set() : new Set(A.labels.map(labelKey))
     A.labels = state.labels ?? []
+    A.labelsAfter = Math.max(0, Math.min(0.95, state.labelsAfter ?? 0))
     A.dur = reduceMotion() || fresh ? 0 : state.duration ?? 1200
     A.ease = EASE[state.ease ?? 'inOut']
     A.t0 = performance.now()

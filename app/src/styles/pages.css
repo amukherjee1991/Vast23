@@ -77,10 +77,10 @@
 }
 .hero__paths {
   margin-top: var(--s-7);
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--s-5);
-  max-width: 40rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3) var(--s-5);
+  max-width: 52rem;
 }
 .hero__path {
   display: grid;
@@ -97,6 +97,7 @@
   transition: transform var(--t-base) var(--ease-out);
 }
 .hero__path-t {
+  white-space: nowrap;
   font-family: var(--font);
   font-size: var(--fs-body);
   font-weight: 500;
