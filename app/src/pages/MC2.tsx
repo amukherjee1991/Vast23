@@ -158,10 +158,8 @@ export default function MC2() {
           }
           lede={
             <>
-              Across 5.3 million shipments, 6,668 companies go silent before mid-2034. We matched each with look-alikes that start within a year and kept 872 candidate
-              handovers. Eight fit the illegal-fishing pattern: fish on both sides, a gap of three months or less, and partners that follow the new name. The clearest is
-              receiver −811, replaced by −206 the next month. Only five of FishEye’s twelve predicted-link bundles can be trusted, and adding them changes none of
-              these verdicts.
+              Of 6,668 companies that go silent, eight fit the illegal-fishing pattern: fish on both sides, a gap of three months or less, and partners that follow the
+              new name. The clearest is receiver −811, replaced by −206 the next month.
             </>
           }
           aside={

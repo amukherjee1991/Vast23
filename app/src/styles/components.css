@@ -481,7 +481,7 @@
     grid-column: 1;
     grid-row: auto;
     position: sticky;
-    top: 0;
+    top: var(--header-h, 0px);
     z-index: 20;
     height: auto;
     padding: var(--s-2) var(--s-4);

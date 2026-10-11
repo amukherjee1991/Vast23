@@ -96,10 +96,26 @@ export default function Home() {
             nation of Oceanus. Each drifting light is a real shipment, and the amber ones carry fish. Each lamp on the mast is a verdict, hoisted
             beside the evidence that supports it.
           </p>
+          <dl className="hero__stats">
+            {[
+              ['3,428', 'news entities'],
+              ['5.46M', 'shipments'],
+              ['27,622', 'register records'],
+              ['12', 'predicted-link sets'],
+            ].map(([n, l]) => (
+              <div key={l}>
+                <dt className="visually-hidden">{l}</dt>
+                <dd>
+                  <span className="hero__stat-n">{n}</span>
+                  <span className="hero__stat-l">{l}</span>
+                </dd>
+              </div>
+            ))}
+          </dl>
           <nav className="hero__paths" aria-label="Start with a mini-challenge">
             {CHALLENGES.map((c) => (
               <Link key={c.mc} to={c.to} className="hero__path">
-                <Flag code={c.pennant} size={56} decorative />
+                <Flag code={c.pennant} size={26} decorative />
                 <span className="hero__path-mc">{c.mc}</span>
                 <span className="hero__path-t">{c.title}</span>
               </Link>

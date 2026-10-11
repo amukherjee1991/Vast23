@@ -45,7 +45,7 @@ export default function MC3() {
         pennant="P3"
         tone="yellow"
         mc="Mini-challenge 3"
-        title="The giant network is a name collision. The anomalies are small fishing firms."
+        title="The giant network is a name collision"
         kicker="A galaxy of companies held together by borrowed names"
         stage={<GalaxyBackdrop />}
         lede={
