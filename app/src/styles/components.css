@@ -1015,3 +1015,115 @@ code {
 .chart .mark {
   transition: opacity var(--t-base) ease;
 }
+
+/* ───────── Story chrome: progress line, bridges ───────── */
+.story-progress {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  z-index: 40;
+  pointer-events: none;
+}
+.story-progress__fill {
+  display: block;
+  height: 100%;
+  background: var(--moon);
+  opacity: 0.85;
+  transform-origin: left;
+  transform: scaleX(var(--p, 0));
+}
+.bridge {
+  position: relative;
+  min-height: 70svh;
+  display: grid;
+  align-content: center;
+  padding: var(--s-10) var(--gutter);
+}
+.bridge::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 96px;
+  background: linear-gradient(to bottom, transparent, var(--ground));
+  pointer-events: none;
+}
+.bridge__inner {
+  display: grid;
+  justify-items: start;
+  gap: var(--s-5);
+  max-width: 46rem;
+}
+.bridge__takeaway {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 1.15rem + 2.3vw, 3.25rem);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--ink-3);
+  text-wrap: balance;
+  transition: color 400ms var(--ease-out);
+}
+.bridge[data-lit="true"] .bridge__takeaway {
+  color: var(--ink);
+}
+.bridge__lead {
+  max-width: 36rem;
+  font-size: var(--fs-lede);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.bridge__next {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 14px 0 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--rule-strong);
+  background: var(--cloth);
+  text-decoration: none;
+  font-size: var(--fs-small);
+  font-weight: 500;
+  transition: transform var(--t-press) var(--ease-out), border-color var(--t-ui) ease, background-color var(--t-ui) ease;
+}
+.bridge__next:active {
+  transform: scale(0.97);
+}
+.bridge__num {
+  font-family: var(--font-mono);
+  color: var(--ink-3);
+}
+.bridge__title {
+  color: var(--ink);
+}
+.bridge__next svg {
+  color: var(--ink-2);
+  transition: transform var(--t-ui) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .bridge__next:hover {
+    border-color: var(--ink-3);
+    background: var(--swell);
+  }
+  .bridge__next:hover svg {
+    transform: translateX(2px);
+  }
+}
+.band__kicker {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-kicker);
+  line-height: 1.3;
+  color: var(--ink-2);
+  margin-top: calc(-1 * var(--s-2));
+  text-shadow: var(--halo);
+}
+@media (max-width: 640px) {
+  .bridge {
+    min-height: 56svh;
+    padding: var(--s-8) var(--s-4);
+  }
+}

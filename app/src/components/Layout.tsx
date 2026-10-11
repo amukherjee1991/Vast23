@@ -119,6 +119,7 @@ export function ChallengeBand({
   tone,
   aside,
   stage,
+  kicker,
   children,
 }: {
   pennant: 'P1' | 'P2' | 'P3'
@@ -129,6 +130,8 @@ export function ChallengeBand({
   aside?: ReactNode
   /** Full-bleed canvas scene behind the opener (decorative to layout; label it). */
   stage?: ReactNode
+  /** Italic serif subtitle under the chapter title. */
+  kicker?: string
   children?: ReactNode
 }) {
   const scene = stage ? <div className="band__stage">{stage}</div> : null
@@ -138,6 +141,7 @@ export function ChallengeBand({
         <Flag code={pennant} size={64} label={mc} />
       </div>
       <h1 className="band__title">{title}</h1>
+      {kicker && <p className="band__kicker">{kicker}</p>}
       <p className="band__lede">{lede}</p>
     </>
   )
