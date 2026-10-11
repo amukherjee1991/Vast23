@@ -1,4 +1,5 @@
-"""Rebuild every baked dataset the app reads, then the home-page summary.
+"""Rebuild every baked dataset the app reads (MC builds, then the night-sea stage
+layouts, which read candidates.json and groups_overview.json), then the home-page summary.
 
 Run from the repo root:  .venv/bin/python pipeline/build_all.py
 (or `npm run data` from app/). Needs data/raw (scripts/fetch_data.sh).
@@ -15,6 +16,7 @@ STEPS = [
     ("MC1", ["pipeline/mc1_build.py"], None),
     ("MC2", ["pipeline/mc2_build.py"], None),
     ("MC3", ["pipeline/mc3_build.py"], None),
+    ("Stages", ["pipeline/stages_build.py"], None),
     ("Summary", ["pipeline/build_summary.py"], None),
 ]
 
