@@ -2,7 +2,7 @@ import { useId, type ReactNode } from 'react'
 
 /* International Code of Signals flags, drawn flat on a 60×45 grid
    (pennants on 90×36). Colors are the flag cloth tokens; every flag
-   carries the one even ink outline so yellow and white read on white. */
+   carries a moonlit edge so black, blue and red cloth read on the dark sea. */
 
 export type FlagCode =
   | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M'

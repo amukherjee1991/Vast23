@@ -2,9 +2,10 @@ import * as d3 from 'd3'
 import { useWidth } from './useSize'
 import { useTooltip } from '../components/Tooltip'
 
-const SEQ = ['#eef2fc', '#dbe4fa', '#b3c6f2', '#87a5e8', '#5a82dc', '#2f5fcf', '#1747c4', '#0f3392', '#0a2366']
+// Night-sea sequential teal (tokens.css --seq-*): dark water → lit
+const SEQ = ['#0a1722', '#0d2230', '#0f3340', '#10494f', '#12625f', '#157c72', '#17a99c', '#4fd1c2', '#a6f0e6']
 
-/** Rows × columns intensity grid on the single-hue blue ramp. */
+/** Rows × columns intensity grid on the single-hue teal ramp. */
 export function Heatmap({
   rows,
   cols,
