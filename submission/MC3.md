@@ -17,7 +17,7 @@ Python (pandas, NetworkX, scikit-learn, SciPy, PyArrow), React, D3, Vite, Playwr
 **Video:**
 Not provided
 
-**Interactive version:** <https://amukherjee1991.github.io/Vast23/#/mc3> (every figure below is a screenshot of a view on this page; the views are interactive there)
+**Interactive version:** <https://amukherjee1991.github.io/Vast23/#/mc3> (every figure below is a screenshot of this page in its night-sea design: either a step of the scroll story that opens the chapter, or an evidence view from the question sections; all are interactive there)
 
 ---
 
@@ -31,30 +31,31 @@ Figures are numbered *question.figure*: Figure 1.3 is the third figure in the an
 
 > Use visual analytics to identify anomalies in the business groups present in the knowledge graph. Limit your response to 400 words and 5 images.
 
-**1. Name collisions create the giant component (Figure 1.1).** Persons are identified only by name. Of persons linked to one company, 21.9% have a top-50 surname; of those linked to 5+ companies, 92.6% do (Figure 1.2). The giant holds 7,093 nodes (1,506 companies). Removing the 651 multi-company persons with common surnames shrinks it to 306 nodes; removing as many random multi-company persons leaves 495–1,918 (10 trials). "John Smith", with 12 companies, is likely several people. Confidence: **High**.
+**1. Name collisions create the giant component (Figures 1.1, 1.2).** Persons are identified only by name. Of persons linked to one company, 21.9% have a top-50 surname; of those linked to 5+ companies, 92.6% do (Figure 1.3). The giant holds 7,093 nodes (1,506 companies). Removing the 651 multi-company persons with common surnames shrinks it to 306 nodes; removing as many random multi-company persons leaves 495–1,918 (10 trials). "John Smith", with 12 companies, is likely several people. Confidence: **High**.
 
-![](images/mc3-q1-ablation.png)
-*Figure 1.1. Removing common-name people breaks the giant apart; removing random people does not.*
+![Scroll-story step: a bright small core of 306 nodes with a faint ring of fragments around it](images/mc3-q1-break.webp)
+*Figure 1.1. Story step: without the 651 common-surname people, the giant breaks into 1,083 pieces; 306 nodes stay joined.*
 
-![](images/mc3-q1-owners.png)
-*Figure 1.2. 13 of the 14 people with the most companies have a top-50 surname.*
+![Scroll-story step: the surviving core with a strip chart comparing 306 against random removals](images/mc3-q1-chance.webp)
+*Figure 1.2. Story step: random removals leave 495–1,918 nodes joined (strip, top right), never 306.*
+
+![Bar chart of people by number of companies, common surnames grey, Anna Wheeler teal](images/mc3-q1-owners.webp)
+*Figure 1.3. 13 of the 14 people with the most companies have a top-50 surname.*
 
 **2. Ownership fragmentation.** Most companies have 0–2 beneficial owners, but 107 have 20+ and 38 have 30+. The largest are *Vespuci Sandbar Sp Brothers* (119), *Dutch Oyster Sagl Cruise ship* (90) and *Niger Bend AS Express* (71). 82 groups carry this flag. Confidence: **High**.
 
-**3. Serial owners with uncommon names** (least likely to be collisions; Figure 1.4). *Anna Wheeler* owns 7 companies and *Jason Carrillo* is the contact for 6 of them (BG00148). All 7 are unregistered or declare no product. BG00148 has the highest anomaly score of 2,347 scored groups. Confidence: **Medium**: two people sharing an uncommon name remain possible.
+**3. Serial owners with uncommon names** (least likely to be collisions; Figures 1.4, 1.5). *Anna Wheeler* owns 7 companies and *Jason Carrillo* is the contact for 6 of them (BG00148). All 7 are unregistered or declare no product. BG00148 has the highest anomaly score of 2,347 scored groups. Confidence: **Medium**: two people sharing an uncommon name remain possible.
 
-![](images/mc3-q1-top30.png)
-*Figure 1.3. The 30 most anomalous groups are small; size alone does not make a group odd.*
+![Scatter of groups by company count and anomaly percentile with the top 30 highlighted](images/mc3-q1-top30.webp)
+*Figure 1.4. The 30 most anomalous groups (teal) are small.*
 
-![](images/mc3-q1-bg00148.png)
-*Figure 1.4. BG00148: one uncommon-name person linked to 7 companies.*
+![Anomaly detail for BG00148 with reason bars and a small star graph](images/mc3-q1-bg00148.webp)
+*Figure 1.5. BG00148: Anna Wheeler owns 7 companies; Jason Carrillo is the contact.*
 
 **4. Registry inconsistencies.** 112 groups contain a distinctive company name registered in several countries. 166 groups (274 companies) hold a fishing-named firm declaring an unrelated product, such as *Dutch Oyster … Cruise ship*, which sells textiles. *Adriatic Squid* has both "Footwear" and "Seafood" records. Confidence: **Medium**.
 
 **5. Data-generation artefacts**, not IUU signals: 1,391 names contain a double space where a word was stripped ("Greek ermen"); 113 product texts end in "source: freelance researcher"; 11,420 Faker-style names ("Smith LLC") all sit in country "ZH".
 
-![](images/mc3-q1-sizes.png)
-*Figure 1.5. One group holds 7,093 nodes; the next largest holds 140.*
 
 **Method.** Each group with ≥ 3 nodes is scored by an Isolation Forest over 16 size-normalised features, explained by robust z-scores (median/MAD), plus 8 rule flags.
 
@@ -66,18 +67,21 @@ Figures are numbered *question.figure*: Figure 1.3 is the third figure in the an
 
 1. **Clean and resolve** records by name, as above.
 2. **Classify product text** with keyword rules: *fishing* (1,043), *adjacent* (food, cold-chain or shipping; 623), *other* (2,209), *unknown* (12,822). Spot checks look right: "Exotic Coldwater Prawns" is fishing, "Freight forwarding" adjacent, "Gasket" other. Fishing words in company names are a second, independent signal on 1,201 names, including pinyin such as *yú* (fish) and *diao yu* (angling).
-3. **Use two similarity spaces.** 77% of companies have no product text; in one shared space the binary "no text" columns dominate the clustering and inflate the silhouette. So:
-    - **Text space** (3,875 companies): LSA of TF-IDF on 1–2 word terms (60 dimensions), weight 0.8, plus structural features, weight 0.2 (Figure 2.1).
-    - **Structure space** (12,822 companies): structural features only (Figure 2.2).
+3. **Use two similarity spaces (Figure 2.1).** 77% of companies have no product text; in one shared space the binary "no text" columns dominate the clustering and inflate the silhouette. So:
+    - **Text space** (3,875 companies): LSA of TF-IDF on 1–2 word terms (60 dimensions), weight 0.8, plus structural features, weight 0.2 (Figure 2.2).
+    - **Structure space** (12,822 companies): structural features only (Figure 2.3).
 4. **Choose k** by silhouette × bootstrap stability, because silhouette alone keeps rising with k on sparse text: k = 20 for text, k = 13 for structure (Figure 3.3).
 
-![](images/mc3-q2-map-text.png)
-*Figure 2.1. Text space: seafood sellers form four neighbouring islands, 861 companies in T09, T12, T16 and T20.*
+![Scroll-story step: a dim t-SNE map with four brightly lit seafood clusters](images/mc3-q2-similar.webp)
+*Figure 2.1. Story step: four seafood clusters lit on the text map, 861 companies.*
 
-![](images/mc3-q2-map-structure.png)
-*Figure 2.2. Structure space: companies without product text group by registry, ownership and fishing words in names.*
+![t-SNE map in text space with four seafood clusters coloured](images/mc3-q2-map-text.webp)
+*Figure 2.2. Text space: seafood sellers form four neighbouring islands.*
 
-**Most important features, presented with each cluster's top terms and key features (Figure 2.3):**
+![t-SNE map in structure space with four structural clusters coloured](images/mc3-q2-map-structure.webp)
+*Figure 2.3. Structure space: firms without product text group by registry, ownership and name words.*
+
+**Most important features, presented with each cluster's top terms and key features (Figure 2.4):**
 
 - **Product terms** drive the text clusters. Four are seafood segments: species (T09: salmon/tuna/shrimp), processed seafood (T12), generic fish products (T16) and frozen seafood (T20). Together they hold 861 companies, each at least 84% fishing-labelled.
 - **Ownership structure**: log owners, log contacts and *owner_reuse* (the most other companies held by any of a company's persons). It separates ownership-hub clusters such as S10 from single-contact shells such as S01.
@@ -85,8 +89,8 @@ Figures are numbered *question.figure*: Figure 1.3 is the third figure in the an
 - **Fishing or maritime words in names** give S09 and S12, fishing-named firms with no product text; for unregistered companies this is the only fishing signal.
 - **Revenue** presence and level separate S03 and S13, high-revenue firms with no product.
 
-![](images/mc3-q2-terms.png)
-*Figure 2.3. Product terms name the 20 text clusters; bars show each cluster's share of fishing product text.*
+![List of text clusters with top terms, sizes and fishing-share bars](images/mc3-q2-terms.webp)
+*Figure 2.4. Top terms name each text cluster; bars give its fishing share.*
 
 Business groups are compared the same way: each group's 16 robust z-scores form a vector, and cosine similarity finds its nearest groups (listed beside each group in Figure 4.1).
 
@@ -105,8 +109,8 @@ Similarity inside a grouping is measured three independent ways:
 - **Text space:** 2 High, 10 Medium, 8 Low (mean stability 0.60), so the text segmentation is only moderately reliable (Figure 3.1). Processed seafood (T12; silhouette 0.49, stability 0.83) is solid. Generic "fish products" (T16; stability 0.47) blurs into the other seafood clusters.
 - **Structure space:** 8 High, 2 Medium, 3 Low (silhouette 0.63, mean stability 0.82). Tighter, but much of that comes from binary features: easy to cluster, not rich.
 
-![](images/mc3-q3-cohesion.png)
-*Figure 3.1. Cluster table with bullet bars for stability and silhouette and a confidence badge: only 2 of 20 text clusters reach High.*
+![Cluster table with stability and silhouette bullet bars and confidence pennants](images/mc3-q3-cohesion.webp)
+*Figure 3.1. Clusters sorted by stability, with bullet bars for stability and silhouette against the Medium and High ticks, and confidence pennants: only 2 of 20 text clusters reach High.*
 
 **How confidence is shown visually.**
 
@@ -115,11 +119,11 @@ Similarity inside a grouping is measured three independent ways:
 - A k-selection chart of silhouette, stability and their product, showing why k was chosen (Figure 3.3).
 - For business groups, the investigation view shows a confidence badge with the reasons behind it (Figure 4.1).
 
-![](images/mc3-q3-margin.png)
-*Figure 3.2. Opacity = margin: faded points sit on a cluster boundary, so their membership is uncertain.*
+![t-SNE map where point opacity encodes cluster margin](images/mc3-q3-margin.webp)
+*Figure 3.2. Opacity = margin: faded points sit near a cluster boundary, so their membership is uncertain.*
 
-![](images/mc3-q3-k.png)
-*Figure 3.3. k = 20 maximises silhouette × stability in the text space; silhouette alone keeps rising.*
+![Line chart of silhouette, stability and score against k with k = 20 marked](images/mc3-q3-k.webp)
+*Figure 3.3. Silhouette, stability and their product against k in the text space; k = 20 maximises the product.*
 
 Confidence that the clusters are useful for segmentation: **Medium**. Confidence in fine-grained text clusters: **Low**.
 
@@ -131,19 +135,22 @@ Confidence that the clusters are useful for segmentation: **Medium**. Confidence
 
 The ranking score is 0.45 × anomaly percentile + 0.30 × flag score + 0.25 × fishing relevance (Figure 4.1). Fishing relevance combines the fishing share of product text with fishing words in names; the product share is shrunk towards the corpus rate of 26.9% (a prior worth 2 companies), so "1 of 1 informative companies is fishing" does not count as 100%. We list 30 groups, with at most 15 Louvain slices of the giant component, each with a rule-based verdict: **2 Suspect, 20 Possible, 7 Insufficient evidence, 1 Unlikely**.
 
-![](images/mc3-q4-investigate.png)
-*Figure 4.1. Thirty groups ranked for FishEye, with BG00177 open: its evidence graph, reasons and most similar groups.*
+![Ranked list of business groups with verdict flags, and the BG00177 evidence panel below](images/mc3-q4-investigate.webp)
+*Figure 4.1. Thirty groups ranked for FishEye (bars split by the three score terms), with BG00177 open: verdict, evidence graph, reasons and most similar groups.*
 
 **Investigate first:**
 
-1. **BG00177: Suspect, Medium confidence (Figure 4.1).** A whole component of 3 fishing-named companies (*Adriatic Squid*, *Brisa del Este Cargo Bonito*, *Sea Harvest Marine*). One owner (*Angelica Wheeler*) and one contact (*Shelly Strong*) are shared across all three. *Adriatic Squid* is registered in both Marebak and Oceanus, with conflicting "Footwear" and "Seafood" records. Two of the three are unregistered. Anomaly in the top 0.2% of groups, fishing relevance 0.91, no name-collision exposure.
+1. **BG00177: Suspect, Medium confidence (Figures 4.1, 4.3).** A whole component of 3 fishing-named companies (*Adriatic Squid*, *Brisa del Este Cargo Bonito*, *Sea Harvest Marine*). One owner (*Angelica Wheeler*) and one contact (*Shelly Strong*) are shared across all three. *Adriatic Squid* is registered in both Marebak and Oceanus, with conflicting "Footwear" and "Seafood" records. Two of the three are unregistered. Anomaly in the top 0.2% of groups, fishing relevance 0.91, no name-collision exposure.
 2. **BG00001.061: Suspect, Medium confidence.** A 16-company slice around *Fisher Marine conservation CJSC* and *Adriatic Tuna Seabass BV*. One company has 26 beneficial owners, a person with an uncommon name links 4 companies, and 62% of the companies are unregistered. As a Louvain slice, its boundary depends on community detection.
-3. **BG00148: Possible, Medium confidence (Figure 1.4).** The highest-anomaly group in the data. The *Anna Wheeler* / *Jason Carrillo* pair controls 7 companies across Oceanus and Coralmarica (*Baltic Sprat*, *jīn qiāng yú AG*, *Náutica del Mar*…). None declares a product, so the fishing link comes from names only.
+3. **BG00148: Possible, Medium confidence (Figures 1.5, 4.3).** The highest-anomaly group in the data. The *Anna Wheeler* / *Jason Carrillo* pair controls 7 companies across Oceanus and Coralmarica (*Baltic Sprat*, *jīn qiāng yú AG*, *Náutica del Mar*…). None declares a product, so the fishing link comes from names only.
 4. **BG00069 and BG00071: Possible, Low confidence.** Small multi-jurisdiction clusters around *Yenisei Eel GmbH* (3 countries) and *Diao yu BV Logistics*. BG00069 would be Suspect, but half of the persons tying each group together have very common surnames.
 5. **Single firms registered in several countries:** BG00861 *Diao yu bi sai SRL* and BG00386 *Delhi ers AS Holdings*, both Possible, Medium confidence.
 
-![](images/mc3-q4-overlap.png)
-*Figure 4.2. Top-5% anomalies are no more fishing-related than the rest: 13% vs 17% reach relevance 0.5.*
+![Scatter of anomaly percentile against fishing relevance with verdict thresholds](images/mc3-q4-overlap.webp)
+*Figure 4.2. Every scored group by anomaly percentile and fishing relevance; the 30 ranked groups take their verdict colour. Top-5% anomalies are no more fishing-related than the rest.*
+
+![Scroll-story step: two small bipartite graphs of people and companies](images/mc3-q4-small.webp)
+*Figure 4.3. Story step "What stays anomalous is small": BG00177 (Suspect; five people around three fishing-named firms) and BG00148 (Possible; Anna Wheeler and Jason Carrillo around seven companies).*
 
 **Evidence against, or where we cannot conclude.** Several large groups have strong structure but no verifiable fishing link. BG00003 (23 companies, 113 persons, top company with 27 owners) is *Insufficient evidence* with **High** confidence. The ownership-hub slices (BG00001.001 around *Vespuci Sandbar*, 119 owners) sell wind-power equipment, textiles or beer: they look like shell or nominee structures, but not fishing ones. BG00016 is *Unlikely* (fishing relevance 0.20).
 
