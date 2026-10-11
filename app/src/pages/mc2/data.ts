@@ -266,24 +266,27 @@ export const COMPONENT_LABEL: Record<Component, string> = {
 }
 export const COMPONENTS = Object.keys(COMPONENT_LABEL) as Component[]
 
-/* Role colour slots are fixed for the whole page. */
-export const ROLE_COLOR: Record<Role, string> = { shipper: 'var(--series-1)', receiver: 'var(--series-2)' }
+/* Night-sea palette, fixed for the whole page (and the scroll story's canvases).
+   Roles take the blue and rose lamps; teal and amber are reserved for goods. */
+export const ROLE_COLOR: Record<Role, string> = { shipper: 'var(--series-4)', receiver: 'var(--series-3)' }
 export const ROLE_LABEL: Record<Role, string> = { shipper: 'Shippers', receiver: 'Receivers' }
-/** Fish vs all goods: fish takes the red slot everywhere; all goods are ink. */
-export const FISH_COLOR = 'var(--series-3)'
-export const ALL_COLOR = 'var(--ink)'
-/** Old vs new company in a handover. The old company is signal white: as a
-    fill it always carries an ink outline (PRED_STROKE); as a line it is ink,
-    dashed (PRED_DASH). The new company is solid ink. */
-export const PRED_COLOR = 'var(--series-5)'
-export const PRED_STROKE = 'var(--ink)'
+/** Fish vs all goods: fish burns amber everywhere; all goods are bioluminescent teal. */
+export const FISH_COLOR = 'var(--series-2)'
+export const ALL_COLOR = 'var(--series-1)'
+/** Old vs new company in a handover. The old company is a moonlight outline
+    over a faint fill (PRED_COLOR + PRED_STROKE); as a line it is moonlight,
+    dashed (PRED_DASH). The new company is lit amber, solid. */
+export const PRED_COLOR = 'color-mix(in oklab, var(--moon) 12%, transparent)'
+export const PRED_STROKE = 'var(--moon)'
 export const PRED_DASH = '4 3'
-export const SUCC_COLOR = 'var(--ink)'
+export const SUCC_COLOR = 'var(--lit-2)'
+/** Wash behind a pressed claim's span (moonlight, low). */
+export const CLAIM_WASH = 'var(--moon)'
 
 export const BUNDLE_COLOR: Record<BundleVerdict, string> = {
-  Reliable: 'var(--flag-blue)',
-  Questionable: 'var(--verdict-possible)',
-  Unreliable: 'var(--flag-red)',
+  Reliable: 'var(--series-4)',
+  Questionable: 'var(--series-2)',
+  Unreliable: 'var(--series-3)',
 }
 
 export const HS_LABEL: Record<string, string> = {

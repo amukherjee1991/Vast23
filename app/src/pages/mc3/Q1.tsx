@@ -6,7 +6,7 @@ import { BarList } from '../../charts/BarList'
 import { useJson } from '../../lib/useJson'
 import { fmt } from '../../lib/signals'
 import { CanvasPlot, type AxisType, type CPoint } from './CanvasPlot'
-import { AblationChart, Claim, GraphLegend, GroupGraph, ReasonBars, SizeHistogram, reveal } from './parts'
+import { Claim, GraphLegend, GroupGraph, ReasonBars, SizeHistogram, reveal } from './parts'
 import { FLAG_LABEL, rowsOf, type Anomaly, type GroupsOverview, type OwnersTop, type UnitRow } from './types'
 
 const nf = fmt.int
@@ -122,33 +122,6 @@ export function Q1() {
           )
           return (
             <>
-              <Figure
-                id="mc3-ablation"
-                title="Removing common-name people breaks the giant apart; removing random people does not"
-                controls={stepChips}
-                legend={
-                  <>
-                    <LegendItem color="var(--ink-3)" label="Giant component as found" />
-                    <LegendItem color="var(--seq-500)" label="Largest left after removing common-surname people" />
-                    <span className="legend-item">
-                      <svg width={14} height={14} aria-hidden>
-                        <circle cx={7} cy={7} r={4} fill="var(--cloth)" stroke="var(--ink)" strokeWidth={1.25} />
-                      </svg>
-                      Same number of random people removed (10 trials)
-                    </span>
-                  </>
-                }
-                caption={<>Source: groups_overview.json, giant_component.name_collision_robustness. Only people linked to two or more companies are removed.</>}
-                table={{
-                  columns: ['Scenario', 'People removed', 'Largest remaining', 'Random control min', 'Random control max'],
-                  rows: [
-                    ['As found', 0, ov.giant_component.n_nodes, null, null],
-                    ...tests.map((t) => [t.label, t.test.persons_removed, t.test.largest_remaining, d3.min(t.test.random_control_largest)!, d3.max(t.test.random_control_largest)!]),
-                  ],
-                }}
-              >
-                <AblationChart asFound={ov.giant_component.n_nodes} tests={tests} step={step} />
-              </Figure>
               <Await state={owners} height={300}>
                 {(ot) => <OwnersFigure data={ot} view={ownerView} setView={(v) => (setOwnerView(v), setOwnerFocus(null))} focus={ownerFocus} />}
               </Await>
@@ -165,16 +138,33 @@ export function Q1() {
                 )}
               </Await>
               <Figure
+                id="mc3-ablation"
                 title={`One group holds ${nf.format(ov.giant_component.n_nodes)} nodes; the next largest holds ${second}`}
-                subtitle={step === 0 ? 'Every connected component of companies and people.' : 'The red dot shows where the giant lands after the removal.'}
+                subtitle={
+                  step === 0
+                    ? 'Every connected component of companies and people. Remove common-surname people to move the giant.'
+                    : `The rose lamp shows where the giant lands; removing the same number of random people leaves ${nf.format(d3.min(tests[step - 1].test.random_control_largest)!)}–${nf.format(d3.max(tests[step - 1].test.random_control_largest)!)}.`
+                }
+                controls={stepChips}
                 legend={
                   <>
                     <LegendItem color="var(--series-1)" label="Components of that size" shape="circle" />
-                    <LegendItem color="var(--series-3)" label="Largest component" shape="circle" />
+                    <LegendItem color="var(--series-3)" label={step === 0 ? 'Largest component' : 'Largest left after the removal'} shape="circle" />
                   </>
                 }
-                caption={<>Source: groups_overview.json, component_size_histogram. 3,540 companies stand alone and 7,785 groups have two nodes.</>}
-                table={{ columns: ['Nodes in group', 'Groups'], rows: ov.component_size_histogram.map((d) => [d.size, d.count]) }}
+                caption={
+                  <>
+                    Source: groups_overview.json, component_size_histogram and giant_component.name_collision_robustness. 3,540 companies stand alone and 7,785 groups
+                    have two nodes. Only people linked to two or more companies are removed.
+                  </>
+                }
+                table={{
+                  columns: ['Scenario', 'People removed', 'Largest remaining', 'Random control min', 'Random control max'],
+                  rows: [
+                    ['As found', 0, ov.giant_component.n_nodes, null, null],
+                    ...tests.map((t) => [t.label, t.test.persons_removed, t.test.largest_remaining, d3.min(t.test.random_control_largest)!, d3.max(t.test.random_control_largest)!]),
+                  ],
+                }}
               >
                 <SizeHistogram
                   hist={ov.component_size_histogram}
@@ -217,7 +207,7 @@ function AnomalyViews({
           x: Number(u[feat.key]) || 0,
           y: u.anomaly_pct,
           color: a ? 'var(--series-1)' : 'var(--series-other)',
-          alpha: a ? 1 : 0.45,
+          alpha: a ? 1 : 0.7,
           r: a ? 4 : 2.5,
           emph: a ? a.rank <= 3 : false,
           label: a && a.rank <= 3 ? u.id : undefined,
@@ -253,7 +243,7 @@ function AnomalyViews({
     <>
       <Figure
         title="The 30 most anomalous groups are small; size alone does not make a group odd"
-        subtitle="Each dot is one of 2,347 scored groups. Select a blue dot to open its evidence."
+        subtitle="Each dot is one of 2,347 scored groups. Select a teal dot to open its evidence."
         controls={
           <>
             {X_FEATURES.map((f, i) => (

@@ -7,6 +7,8 @@ import { Q1 } from './mc3/Q1'
 import { Q2, Q3 } from './mc3/Q2Q3'
 import { Q4 } from './mc3/Q4'
 import { Q5 } from './mc3/Q5'
+import { GalaxyBackdrop, MC3Story } from './mc3/Story'
+import { Bridge } from '../components/Story'
 import { reveal } from './mc3/parts'
 import type { Investigate } from './mc3/types'
 import './mc3/mc3.css'
@@ -32,6 +34,10 @@ export default function MC3() {
   const inv = useJson<Investigate>('mc3/investigate.json')
   const [invSel, setInvSel] = useState('BG00177')
   const live = inv.status === 'ready' ? new Map(inv.data.groups.map((g) => [g.id, g])) : null
+  const open = (id: string) => {
+    setInvSel(id)
+    reveal('mc3-investigate')
+  }
 
   return (
     <main className="mc3">
@@ -40,6 +46,8 @@ export default function MC3() {
         tone="yellow"
         mc="Mini-challenge 3"
         title="The giant network is a name collision. The anomalies are small fishing firms."
+        kicker="A galaxy of companies held together by borrowed names"
+        stage={<GalaxyBackdrop />}
         lede={
           <>
             FishEye’s register links 16,697 companies to 21,265 people. Joined naively, they form one 7,093-node business group, but common names like John
@@ -49,10 +57,7 @@ export default function MC3() {
         aside={
           <HeroHoist
             label="Groups to investigate first"
-            onSelect={(id) => {
-              setInvSel(id)
-              reveal('mc3-investigate')
-            }}
+            onSelect={open}
             items={LEADS.map((l) => {
               const g = live?.get(l.id)
               return {
@@ -71,6 +76,7 @@ export default function MC3() {
           />
         }
       />
+      <MC3Story onOpen={open} />
       <ChallengePage stops={STOPS}>
         <Q1 />
         <Q2 />
@@ -78,6 +84,11 @@ export default function MC3() {
         <Q4 selected={invSel} setSelected={setInvSel} />
         <Q5 />
       </ChallengePage>
+      <Bridge
+        takeaway="The biggest business group in Oceanus is a name collision. The leads worth FishEye’s time are two small families of fishing-named firms."
+        lead="Every number on this page was baked by a Python pipeline from the raw challenge data. Next: how it was made, and what it cannot tell you."
+        next="/method"
+      />
     </main>
   )
 }

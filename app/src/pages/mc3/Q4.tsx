@@ -272,7 +272,7 @@ function OverlapFigure({
           x: u.anomaly_pct,
           y: u.iuu_relevance,
           color,
-          alpha: g ? 1 : showTop && top ? 0.8 : 0.4,
+          alpha: g ? 1 : showTop && top ? 0.85 : 0.6,
           r: g ? 4.5 : 2.4,
           emph: !!g && toVerdict(g.verdict) === 'Suspect',
           label: g && toVerdict(g.verdict) === 'Suspect' ? u.id : undefined,

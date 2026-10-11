@@ -15,11 +15,14 @@ export function Scrolly({
   stage,
   label,
   onStep,
+  rootMargin = '-48% 0px -48% 0px',
 }: {
   steps: ScrollyStep[]
   stage: (active: number) => ReactNode
   label: string
   onStep?: (i: number) => void
+  /** Where the activation line sits (IntersectionObserver rootMargin). Defaults to the viewport middle. */
+  rootMargin?: string
 }) {
   const [active, setActive] = useState(0)
   const refs = useRef<(HTMLElement | null)[]>([])
@@ -36,11 +39,11 @@ export function Scrolly({
           onStepRef.current?.(i)
         }
       },
-      { rootMargin: '-48% 0px -48% 0px' },
+      { rootMargin },
     )
     refs.current.forEach((el) => el && io.observe(el))
     return () => io.disconnect()
-  }, [steps.length])
+  }, [steps.length, rootMargin])
 
   return (
     <section className="scrolly" aria-label={label}>

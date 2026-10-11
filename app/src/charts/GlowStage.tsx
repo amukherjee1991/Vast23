@@ -29,6 +29,16 @@ export interface GlowLabel {
   text: string
   /** Draw in the lamp colour of the node instead of moonlight. */
   lamp?: boolean
+  /** Which side of the node the text sits on (default 'right'). */
+  align?: 'left' | 'right'
+}
+/** A thin lamp-coloured ring around node i (e.g. a verdict), drawn over the
+    glow without additive blending; it fades with the node. */
+export interface GlowRing {
+  i: number
+  color: string
+  /** Ring radius in CSS px (defaults to 9). */
+  r?: number
 }
 export interface GlowState {
   nodeAlpha: (i: number) => number
@@ -42,6 +52,14 @@ export interface GlowState {
   labels?: GlowLabel[]
   /** Transition length in ms (defaults to the story duration). */
   duration?: number
+  /** Rings around nodes, drawn over the glow (optional). */
+  rings?: GlowRing[]
+  /** Optional per-edge start delay as a fraction (0..0.9) of the duration, so
+      a path can be traced edge by edge. Defaults to 0. */
+  edgeDelay?: (e: GlowEdge, j: number) => number
+  /** Optional per-node start delay as a fraction (0..0.9) of the duration, so
+      a change can ripple (e.g. outward from the centre). Defaults to 0. */
+  nodeDelay?: (i: number) => number
 }
 export interface GlowStageHandle {
   /** Screen position of node i in CSS pixels relative to the canvas, if visible. */
@@ -89,8 +107,11 @@ export const GlowStage = forwardRef<
     /** Sprite radius multiplier: how far each light blooms. */
     bloom?: number
     className?: string
+    /** First paint: 'fade' (default) fades in place; 'bloom' also grows the
+        sky out of the camera centre over 1.6 s. Reduced motion snaps. */
+    intro?: 'fade' | 'bloom'
   }
->(function GlowStage({ nodes, edges, state, ariaLabel, onHover, onSelect, bloom = 3.2, className }, ref) {
+>(function GlowStage({ nodes, edges, state, ariaLabel, onHover, onSelect, bloom = 3.2, className, intro = 'fade' }, ref) {
   const wrap = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const anim = useRef({
@@ -101,6 +122,7 @@ export const GlowStage = forwardRef<
     eFrom: new Float32Array(0),
     eTo: new Float32Array(0),
     eCur: new Float32Array(0),
+    delay: new Float32Array(0),
     colors: [] as string[],
     cam: [0, 0, 1, 1] as number[],
     camFrom: [0, 0, 1, 1] as number[],
@@ -112,6 +134,11 @@ export const GlowStage = forwardRef<
     h: 0,
     dpr: 1,
     labels: [] as GlowLabel[],
+    rings: [] as GlowRing[],
+    ringsFrom: [] as GlowRing[],
+    eDelay: new Float32Array(0),
+    colorsFrom: [] as string[],
+    k: 1,
     tree: null as d3.Quadtree<number> | null,
   })
   const cb = useRef({ onHover, onSelect })
@@ -177,8 +204,33 @@ export const GlowStage = forwardRef<
       if (x < -40 || y < -40 || x > A.w + 40 || y > A.h + 40) continue
       const r = nodes[i].r * A.cur.s[i] * zoom
       const R = r * bloom
-      g.globalAlpha = a
+      const c0 = A.colorsFrom[i]
+      if (A.k < 1 && c0 && c0 !== A.colors[i]) {
+        // colour change: cross-fade the two lights
+        g.globalAlpha = a * (1 - A.k)
+        g.drawImage(sprite(c0), x - R, y - R, R * 2, R * 2)
+        g.globalAlpha = a * A.k
+      } else g.globalAlpha = a
       g.drawImage(sprite(A.colors[i]), x - R, y - R, R * 2, R * 2)
+    }
+    // rings: thin lamp circles over the glow, cross-faded between states
+    if (A.rings.length || A.ringsFrom.length) {
+      g.globalCompositeOperation = 'source-over'
+      g.lineWidth = 1.5
+      const drawRing = (R: GlowRing, f: number) => {
+        const a = A.cur.a[R.i] * f
+        if (!(a > 0.02)) return
+        const [x, y] = toScreen(A.cur.x[R.i], A.cur.y[R.i])
+        g.globalAlpha = a
+        g.strokeStyle = R.color
+        g.beginPath()
+        g.arc(x, y, R.r ?? 9, 0, Math.PI * 2)
+        g.stroke()
+      }
+      const now = new Set(A.rings.map((R) => R.i))
+      const was = new Set(A.ringsFrom.map((R) => R.i))
+      for (const R of A.ringsFrom) if (!now.has(R.i)) drawRing(R, 1 - A.k)
+      for (const R of A.rings) drawRing(R, was.has(R.i) ? 1 : A.k)
     }
     // labels: moonlight text with a water halo
     g.globalCompositeOperation = 'source-over'
@@ -189,7 +241,10 @@ export const GlowStage = forwardRef<
     for (const L of A.labels) {
       if (A.cur.a[L.i] < 0.3) continue
       const [x, y] = toScreen(A.cur.x[L.i], A.cur.y[L.i])
-      const tx = x + 10
+      // flip left when asked, or when the label would run off the right edge
+      const left = L.align === 'left' || (L.align == null && x + 10 + g.measureText(L.text).width > A.w - 4)
+      const tx = left ? x - 10 : x + 10
+      g.textAlign = left ? 'end' : 'start'
       g.strokeStyle = 'rgba(5,12,20,0.92)'
       g.lineWidth = 4
       g.strokeText(L.text, tx, y)
@@ -213,13 +268,20 @@ export const GlowStage = forwardRef<
     const A = anim.current
     const p = A.dur <= 0 ? 1 : Math.min(1, (now - A.t0) / A.dur)
     const k = ease(p)
+    A.k = k
     for (let i = 0; i < A.n; i++) {
-      A.cur.a[i] = A.from.a[i] + (A.to.a[i] - A.from.a[i]) * k
-      A.cur.s[i] = A.from.s[i] + (A.to.s[i] - A.from.s[i]) * k
-      A.cur.x[i] = A.from.x[i] + (A.to.x[i] - A.from.x[i]) * k
-      A.cur.y[i] = A.from.y[i] + (A.to.y[i] - A.from.y[i]) * k
+      const d = A.delay[i]
+      const ki = d > 0 ? ease(Math.max(0, Math.min(1, (p - d) / (1 - d)))) : k
+      A.cur.a[i] = A.from.a[i] + (A.to.a[i] - A.from.a[i]) * ki
+      A.cur.s[i] = A.from.s[i] + (A.to.s[i] - A.from.s[i]) * ki
+      A.cur.x[i] = A.from.x[i] + (A.to.x[i] - A.from.x[i]) * ki
+      A.cur.y[i] = A.from.y[i] + (A.to.y[i] - A.from.y[i]) * ki
     }
-    for (let j = 0; j < A.eCur.length; j++) A.eCur[j] = A.eFrom[j] + (A.eTo[j] - A.eFrom[j]) * k
+    for (let j = 0; j < A.eCur.length; j++) {
+      const d = A.eDelay[j] ?? 0
+      const kj = d > 0 ? ease(Math.max(0, Math.min(1, (p - d) / (1 - d)))) : k
+      A.eCur[j] = A.eFrom[j] + (A.eTo[j] - A.eFrom[j]) * kj
+    }
     for (let c = 0; c < 4; c++) A.cam[c] = A.camFrom[c] + (A.camTo[c] - A.camFrom[c]) * k
     draw()
     if (p < 1) A.raf = requestAnimationFrame(tick)
@@ -242,6 +304,7 @@ export const GlowStage = forwardRef<
         set.x = new Float32Array(n)
         set.y = new Float32Array(n)
       }
+      A.delay = new Float32Array(n)
       nodes.forEach((d, i) => {
         A.cur.x[i] = d.x
         A.cur.y[i] = d.y
@@ -253,6 +316,7 @@ export const GlowStage = forwardRef<
       A.eCur = new Float32Array(edges.length)
     }
     const useB = state.positions === 'b'
+    A.colorsFrom = fresh ? [] : A.colors
     A.colors = nodes.map((d, i) => state.nodeColor?.(i) ?? d.color)
     for (let i = 0; i < n; i++) {
       A.from.a[i] = A.cur.a[i]
@@ -265,11 +329,16 @@ export const GlowStage = forwardRef<
       A.to.s[i] = state.nodeScale?.(i) ?? 1
       A.to.x[i] = useB && !gone ? (d.x2 as number) : d.x
       A.to.y[i] = useB && !gone ? (d.y2 as number) : d.y
+      A.delay[i] = fresh || !state.nodeDelay ? 0 : Math.max(0, Math.min(0.9, state.nodeDelay(i)))
     }
     for (let j = 0; j < edges.length; j++) {
       A.eFrom[j] = A.eCur[j]
       A.eTo[j] = Math.max(0, Math.min(1, state.edgeAlpha(edges[j], j)))
     }
+    if (A.eDelay.length !== edges.length) A.eDelay = new Float32Array(edges.length)
+    for (let j = 0; j < edges.length; j++) A.eDelay[j] = fresh || !state.edgeDelay ? 0 : Math.max(0, Math.min(0.9, state.edgeDelay(edges[j], j)))
+    A.ringsFrom = fresh ? [] : A.rings
+    A.rings = state.rings ?? []
     A.camFrom = [...A.cam]
     A.camTo = state.camera ? [...state.camera] : [0, 0, 1, 1]
     A.labels = state.labels ?? []
@@ -281,6 +350,16 @@ export const GlowStage = forwardRef<
       A.eFrom.fill(0)
       A.dur = reduceMotion() ? 0 : 900
       A.camFrom = [...A.camTo]
+      if (intro === 'bloom' && !reduceMotion()) {
+        // grow out of the centre of the framed box
+        const cx = (A.camTo[0] + A.camTo[2]) / 2
+        const cy = (A.camTo[1] + A.camTo[3]) / 2
+        for (let i = 0; i < n; i++) {
+          A.from.x[i] = cx + (A.to.x[i] - cx) * 0.04
+          A.from.y[i] = cy + (A.to.y[i] - cy) * 0.04
+        }
+        A.dur = 1600
+      }
     }
     cancelAnimationFrame(A.raf)
     A.raf = requestAnimationFrame(tick)
