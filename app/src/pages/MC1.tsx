@@ -200,12 +200,12 @@ export default function MC1() {
           }
         />
       </div>
+      {state.status === 'ready' && sky.status === 'ready' ? (
+        <MC1Story sky={sky.data} d={state.data} onSuspect={openSuspect} />
+      ) : (
+        <div id="story" className="chapter-story mc1-story--wait" aria-busy="true" />
+      )}
       <ChallengePage stops={STOPS}>
-        {state.status === 'ready' && sky.status === 'ready' ? (
-          <MC1Story sky={sky.data} d={state.data} onSuspect={openSuspect} />
-        ) : (
-          <div id="story" className="mc1-story mc1-story--wait" aria-busy="true" />
-        )}
         <Q1 state={state} suspect={egoSuspect} setSuspect={setEgoSuspect} claim={q1Claim} setClaim={setQ1Claim} />
         <Q2 state={state} />
         <Q3 state={state} />
@@ -223,6 +223,7 @@ export default function MC1() {
 function SuspectHoist({ d, onOpen }: { d: MC1; onOpen: (k: string) => void }) {
   return (
     <HeroHoist
+      compact
       label="Verdicts on the four suspects"
       onSelect={onOpen}
       items={SUSPECT_ORDER.map((k) => {

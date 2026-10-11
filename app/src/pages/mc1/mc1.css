@@ -230,110 +230,13 @@
   border-radius: 1px;
 }
 
-/* ───────── The sky: the signature scroll story ─────────
-   Steps are plain text on the water (no cards); the active one is lit by a
-   moonlight rule. The stage is the canvas, with a quiet key and count. */
-.mc1-story {
-  margin-right: calc(-1 * var(--s-5));
-  scroll-margin-top: 56px;
-}
+/* ───────── The sky: the signature scroll story ───────── */
 .mc1-story--wait {
   min-height: 100dvh;
-}
-.mc1-story .scrolly {
-  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
-  gap: var(--s-6);
-}
-.mc1-story .step {
-  padding: var(--s-2) 0 var(--s-2) var(--s-5);
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border-left: 1px solid var(--rule-strong);
-  opacity: 0.4;
-  transition: opacity var(--t-base) var(--ease-out), border-color var(--t-base) var(--ease-out);
-}
-.mc1-story .step[data-active="true"] {
-  opacity: 1;
-  border-left-color: var(--moon);
-}
-.mc1-story .step__title {
-  font-size: var(--fs-card);
-  text-wrap: balance;
-}
-.mc1-story .step p {
-  text-wrap: pretty;
 }
 .sky {
   position: relative;
   width: 100%;
   height: 100%;
   background: radial-gradient(60% 55% at 55% 50%, color-mix(in oklab, var(--series-4) 7%, transparent), transparent 70%);
-}
-.sky__foot {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: var(--s-2) var(--s-5);
-  padding: 0 var(--s-2) var(--s-1);
-  pointer-events: none;
-}
-.sky-key {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-1) var(--s-4);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--fs-label);
-  color: var(--ink-2);
-  text-shadow: var(--halo);
-}
-.sky-key li {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.sky__count {
-  font-family: var(--font-mono);
-  font-size: var(--fs-label);
-  color: var(--ink-3);
-  text-shadow: var(--halo);
-}
-@media (max-width: 960px) {
-  .mc1-story {
-    margin-right: 0;
-  }
-  .mc1-story .scrolly {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-  }
-  /* the stage stays on top: steps slide under it, never over it */
-  .mc1-story .scrolly__stage {
-    z-index: 3;
-  }
-  .sky__count {
-    display: none;
-  }
-}
-
-/* Opener on phones: the sky hangs in a window above the title. */
-@media (max-width: 720px) {
-  .mc1 .band {
-    padding-top: calc(42svh + var(--s-5));
-  }
-  .mc1 .band__stage {
-    bottom: auto;
-    height: 46svh;
-  }
-  .mc1 .band__stage::after {
-    background: linear-gradient(0deg, var(--ground) 0%, transparent 30%);
-  }
 }

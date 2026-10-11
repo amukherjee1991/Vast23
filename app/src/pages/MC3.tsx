@@ -56,6 +56,7 @@ export default function MC3() {
         }
         aside={
           <HeroHoist
+            compact
             label="Groups to investigate first"
             onSelect={open}
             items={LEADS.map((l) => {

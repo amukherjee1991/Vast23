@@ -355,57 +355,7 @@
   outline-color: var(--rule-strong);
 }
 
-/* ═════════ Opener: the currents behind the title ═════════ */
-/* Wide: the title column reads from the top; the hoist drops below a clear
-   pool of water in the right column where the currents turn (Currents.tsx
-   centres the gyre at y = 270px). */
-.mc2 .band {
-  min-height: max(100dvh - 60px, 820px);
-  padding-top: var(--s-8);
-}
-@media (min-width: 1100px) {
-  .mc2 .band__inner--split {
-    align-items: start;
-  }
-  .mc2 .band__aside {
-    margin-top: 420px;
-  }
-}
-.mc2 .band__stage::after {
-  background:
-    linear-gradient(90deg, var(--ground) 0%, color-mix(in oklab, var(--ground) 62%, transparent) 34%, transparent 56%),
-    linear-gradient(0deg, var(--ground) 0%, color-mix(in oklab, var(--ground) 55%, transparent) 18%, transparent 36%);
-}
-/* The hoist sits over the lower currents: a soft pool of dark water behind it
-   (no box), and names one step smaller than other chapters so the scene shows. */
-.mc2 .band__aside {
-  position: relative;
-  z-index: 0;
-}
-.mc2 .band__aside::before {
-  content: "";
-  position: absolute;
-  inset: -48px -72px -32px -48px;
-  z-index: -1;
-  background: radial-gradient(closest-side, color-mix(in oklab, var(--ground) 82%, transparent), transparent);
-  pointer-events: none;
-}
-.mc2 .hoist__name {
-  font-size: clamp(1.125rem, 0.95rem + 0.55vw, 1.5rem);
-}
-@media (max-width: 1099px) {
-  /* stacked opener: the currents get a clear region above the flag */
-  .mc2 .band {
-    min-height: 0;
-    padding-top: calc(min(78vw, 380px) + 24px);
-  }
-  .mc2 .band__stage::after {
-    background: linear-gradient(180deg, transparent 0, transparent calc(min(78vw, 380px) - 40px), var(--ground) calc(min(78vw, 380px) + 80px));
-  }
-  .mc2 .band__aside::before {
-    display: none;
-  }
-}
+/* ═════════ Currents (opener and story stage) ═════════ */
 .mc2-cur {
   position: relative;
   width: 100%;
@@ -556,18 +506,8 @@
 }
 
 /* ═════════ The scroll story ═════════ */
-.mc2-story {
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 0 var(--gutter);
-  scroll-margin-top: 60px;
-}
-.mc2-story .step strong,
 .mc2-num {
-  font-weight: 500;
   color: var(--ink);
-}
-.mc2-num {
   font-family: var(--font-mono);
   font-weight: 400;
 }
@@ -702,7 +642,8 @@
   align-items: center;
   gap: 4px var(--s-2);
   font-size: var(--fs-label);
-  color: var(--ink-3);
+  color: var(--ink-2);
+  text-shadow: var(--halo);
 }
 .mc2-bun__k {
   display: inline-block;
@@ -720,6 +661,8 @@
 }
 .mc2-bun__note {
   margin-left: auto;
+  font-family: var(--font-mono);
+  color: var(--ink-3);
 }
 @media (max-width: 560px) {
   .mc2-bun {
@@ -780,33 +723,15 @@
   font-weight: 400;
   color: var(--ink);
 }
-.mc2-hold__lamps {
-  display: grid;
-  grid-template-columns: repeat(10, 12px);
-  gap: 7px;
+.mc2-hold__cv {
+  display: block;
+  width: min(100%, 190px);
+  opacity: 0.15;
+  transition: opacity 560ms var(--ease-out);
 }
-.mc2-hold__lamps i {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-.mc2-hold__row[data-v="Suspect"] i {
-  background: var(--lit-3);
-  box-shadow: 0 0 7px var(--series-3);
-}
-.mc2-hold__row[data-v="Possible"] i {
-  background: var(--lit-2);
-  box-shadow: 0 0 6px color-mix(in oklab, var(--series-2) 80%, transparent);
-}
-.mc2-hold[data-on="true"] .mc2-hold__lamps i {
-  animation: mc2-lamp 560ms var(--ease-out) both;
-  animation-delay: calc(var(--c) * 260ms);
-}
-@keyframes mc2-lamp {
-  from {
-    opacity: 0.12;
-    transform: scale(0.6);
-  }
+.mc2-hold[data-on="true"] .mc2-hold__cv {
+  opacity: 1;
+  transition-delay: calc(var(--c) * 260ms + 150ms);
 }
 .mc2-hold__foot {
   max-width: 52ch;
@@ -815,9 +740,8 @@
   color: var(--ink-3);
 }
 @media (prefers-reduced-motion: reduce) {
-  .mc2-hold[data-on="true"] .mc2-hold__lamps i {
-    animation: none;
-  }
+  .mc2-hold__cv,
+  .mc2-hold[data-on="true"] .mc2-hold__cv,
   .mc2-bun__cell .mc2-bun__cv,
   .mc2-bun[data-on="true"] .mc2-bun__cell[data-rel="true"] .mc2-bun__cv {
     transition: none;
@@ -827,35 +751,7 @@
   .mc2-hold__cols {
     gap: var(--s-3);
   }
-  .mc2-hold__lamps {
-    grid-template-columns: repeat(10, 7px);
-    gap: 3px;
-  }
-  .mc2-hold__lamps i {
-    width: 7px;
-    height: 7px;
-  }
   .mc2-hold__h {
     font-size: var(--fs-small);
-  }
-}
-
-/* Phones and tablets: the stage pins under the header, above the steps, and
-   the steps pass beneath it (the activation line sits low, see MC2.tsx). */
-@media (max-width: 960px) {
-  .mc2-story .scrolly__stage {
-    top: 65px;
-    z-index: 3;
-    height: 48vh;
-    min-height: 300px;
-  }
-  .mc2-story .scrolly__steps {
-    z-index: 1;
-  }
-}
-@media (max-width: 860px) {
-  .mc2-story .scrolly__stage {
-    top: 96px;
-    height: 44vh;
   }
 }

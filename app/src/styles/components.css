@@ -104,21 +104,26 @@
   color: var(--ink-3);
 }
 
-/* ───────── Chapter opener (was the colour band) ─────────
-   A full-viewport night scene. An optional canvas stage fills the background;
-   the tone only tints the horizon, as if a lamp of that colour were lit. */
+/* ───────── Chapter opener ─────────
+   A full-viewport night scene in two regions, like VAST22's prologue: the
+   words hold the left ~44% (pennant, title, kicker, lede, then the compact
+   verdict hoist) and the chapter's stage fills the right ~60% at full band
+   height, fading into the water at its left and bottom edges. Below 1100px
+   the stage sits on top (46svh) and the words follow. The tone only tints
+   the horizon, as if a lamp of that colour were lit. */
 .band {
   --lamp: var(--series-3);
+  --band-x: var(--gutter);
   position: relative;
   isolation: isolate;
-  min-height: min(100dvh - 60px, 980px);
+  min-height: calc(100svh - var(--header-h));
   display: grid;
-  align-items: end;
-  padding: var(--s-9) var(--gutter) var(--s-8);
+  align-items: center;
+  padding: var(--s-6) var(--band-x);
   overflow: hidden;
   border-bottom: 1px solid var(--rule);
   background:
-    radial-gradient(120% 70% at 78% 100%, color-mix(in oklab, var(--lamp) 16%, transparent), transparent 60%),
+    radial-gradient(90% 70% at 72% 100%, color-mix(in oklab, var(--lamp) 14%, transparent), transparent 60%),
     linear-gradient(180deg, var(--abyss), var(--ground) 70%);
 }
 .band--red { --lamp: var(--series-3); }
@@ -126,41 +131,31 @@
 .band--yellow { --lamp: var(--series-2); }
 .band__stage {
   position: absolute;
-  inset: 0;
   z-index: -1;
-}
-.band__stage::after {
-  /* fade the stage into the page so the text column always reads */
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(90deg, var(--ground) 0%, color-mix(in oklab, var(--ground) 55%, transparent) 38%, transparent 62%),
-    linear-gradient(0deg, var(--ground) 0%, transparent 22%);
-  pointer-events: none;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  /* the stage starts at 40% of the (max 1440px) content row */
+  left: calc(50% - min(50%, 720px) + min(100%, 1440px) * 0.4);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 20%), linear-gradient(0deg, transparent 0, #000 14%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent 0, #000 20%), linear-gradient(0deg, transparent 0, #000 14%);
+  mask-composite: intersect;
 }
 .band__inner {
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
   display: grid;
-  gap: var(--s-5);
-}
-.band__inner--split {
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--s-7);
-}
-@media (min-width: 1100px) {
-  .band__inner--split {
-    grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
-    align-items: end;
-    gap: var(--s-8);
-  }
+  grid-template-columns: minmax(0, 44%) minmax(0, 1fr);
+  /* the empty right column must not swallow the stage's hover and clicks */
+  pointer-events: none;
 }
 .band__main {
   display: grid;
-  gap: var(--s-5);
-  align-content: end;
+  gap: var(--s-4);
+  align-content: center;
+  pointer-events: auto;
 }
 .band__mark {
   display: flex;
@@ -168,10 +163,11 @@
   gap: var(--s-3);
 }
 .band__title {
-  font-size: var(--fs-h1);
-  max-width: 16ch;
-  line-height: 0.98;
+  margin-top: var(--s-2);
+  font-size: clamp(2.5rem, 1.6rem + 2vw, 3.75rem);
+  line-height: 1;
   letter-spacing: -0.018em;
+  text-wrap: balance;
   text-shadow: var(--halo);
 }
 .band__lede {
@@ -183,11 +179,25 @@
 }
 .band__aside {
   min-width: 0;
+  margin-top: var(--s-3);
 }
-@media (max-width: 720px) {
+@media (max-width: 1099px) {
   .band {
     min-height: 0;
-    padding: var(--s-8) var(--s-4) var(--s-7);
+    align-items: start;
+    padding: 0 var(--band-x) var(--s-8);
+  }
+  .band__stage {
+    position: relative;
+    left: auto;
+    height: 46svh;
+    min-height: 260px;
+    margin: 0 calc(-1 * var(--band-x)) var(--s-4);
+    -webkit-mask-image: linear-gradient(0deg, transparent 0, #000 22%);
+    mask-image: linear-gradient(0deg, transparent 0, #000 22%);
+  }
+  .band__inner {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -316,6 +326,56 @@
   }
 }
 
+/* Compact hoist (the chapter openers): positions in at most two columns, each
+   flag hanging on a short line from a hairline halyard above it. */
+.hoist--compact {
+  padding-left: 0;
+}
+.hoist--compact .hoist__list {
+  grid-template-columns: repeat(auto-fit, minmax(max(15rem, calc((100% - var(--s-6)) / 2)), 1fr));
+  gap: var(--s-4) var(--s-6);
+}
+.hoist--compact .hoist__pos {
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: var(--s-3);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--rule-strong);
+}
+.hoist--compact .hoist__pos::before {
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: var(--s-4);
+  border-top: 0;
+  background: var(--ink-3);
+}
+.hoist--compact .hoist__flag {
+  padding-top: 2px;
+}
+.hoist--compact .hoist__name {
+  font-size: clamp(1.125rem, 1rem + 0.3vw, 1.25rem);
+  line-height: 1.2;
+}
+.hoist--compact .hoist__btn {
+  /* long successor pairs: two lines, the full name stays in the accessible text */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.hoist--compact .hoist__verdict {
+  gap: 5px;
+  font-size: var(--fs-label);
+}
+.hoist--compact .hoist__reason {
+  max-width: none;
+  font-size: var(--fs-micro);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
 /* ───────── Chapter page + rail ───────── */
 .cp {
   display: grid;
@@ -333,9 +393,9 @@
   grid-column: 2;
   grid-row: 1;
   position: sticky;
-  top: 72px;
+  top: calc(var(--header-h) + var(--s-2));
   align-self: start;
-  height: calc(100dvh - 96px);
+  height: calc(100dvh - var(--header-h) - var(--s-5));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -454,15 +514,16 @@
   padding: var(--space-act) 0 var(--s-8);
   display: grid;
   gap: var(--s-6);
-  scroll-margin-top: 72px;
+  scroll-margin-top: var(--header-h);
 }
 .q + .q {
   border-top: 1px solid color-mix(in oklab, var(--rule) 60%, transparent);
 }
 .q__head {
   display: grid;
-  gap: var(--s-4);
-  max-width: 52rem;
+  grid-template-columns: 2.75rem minmax(0, 1fr);
+  align-items: baseline;
+  max-width: 55rem;
 }
 .q__n {
   font-family: var(--font-mono);
@@ -473,19 +534,13 @@
   align-items: center;
   gap: var(--s-2);
 }
-.q__n::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--moon);
-  box-shadow: 0 0 10px var(--moon);
-}
+
 .q__title {
   font-size: var(--fs-h2);
   max-width: 24ch;
 }
 .q__prompt {
+  margin-top: var(--s-3);
   font-size: var(--fs-micro);
   color: var(--ink-3);
   max-width: 72ch;
@@ -514,7 +569,7 @@
   }
   .q__answer--pin {
     position: sticky;
-    top: 96px;
+    top: calc(var(--header-h) + var(--s-5));
   }
   .q__evidence {
     grid-column: 2;
@@ -908,42 +963,48 @@ code {
   margin-right: 4px;
 }
 
-/* ───────── Scroll story: a sticky stage with steps passing over it ─────────
-   Desktop: steps run in a left column while the stage stays pinned on the
-   right. Phone: the stage pins at the top (shorter) and steps scroll beneath
-   it, never over it. */
+/* ───────── Scroll story: steps beside a sticky stage ─────────
+   Every chapter's story sits in the same wrapper (.chapter-story). Desktop:
+   the steps run in a left column, set on the dark like VAST22 (no card, a
+   hairline rule that turns moonlight on the active step), while the stage
+   stays pinned on the right in a column of its own. Phone: the stage pins
+   below the site header and the steps scroll beneath it, never over it; the
+   activation line sits below the stage (see Scrolly.tsx). */
+.chapter-story {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  scroll-margin-top: var(--header-h);
+}
 .scrolly {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 24rem) minmax(0, 1fr);
   gap: var(--s-8);
 }
 .scrolly__steps {
   position: relative;
-  z-index: 2;
-  padding: 30vh 0 40vh;
+  z-index: 1;
+  padding: 32vh 0 42vh;
   display: grid;
   gap: 55vh;
 }
 .scrolly__stage {
   position: sticky;
-  top: 72px;
-  height: calc(100dvh - 96px);
+  top: calc(var(--header-h) + var(--s-2));
+  height: calc(100svh - var(--header-h) - var(--s-4));
   min-height: 420px;
   align-self: start;
 }
 .step {
-  padding: var(--s-5);
-  border-radius: var(--radius-md);
-  background: color-mix(in oklab, var(--cloth) 82%, transparent);
-  backdrop-filter: var(--blur-float);
-  -webkit-backdrop-filter: var(--blur-float);
-  box-shadow: var(--shadow-float);
-  opacity: 0.45;
-  transition: opacity var(--t-base) ease;
+  padding: var(--s-2) 0 var(--s-2) var(--s-5);
+  border-left: 1px solid var(--rule-strong);
+  opacity: 0.4;
+  transition: opacity var(--t-base) var(--ease-out), border-color var(--t-base) var(--ease-out);
 }
 .step[data-active="true"] {
   opacity: 1;
+  border-left-color: var(--moon);
 }
 .step__title {
   font-family: var(--font-display);
@@ -951,14 +1012,22 @@ code {
   line-height: 1.15;
   color: var(--ink);
   margin-bottom: var(--s-3);
+  text-wrap: balance;
 }
 .step p {
   color: var(--ink-2);
   font-size: var(--fs-body);
   line-height: 1.6;
+  text-wrap: pretty;
 }
-.step p + p {
+.step p + p,
+.step p + div,
+.step div + p {
   margin-top: var(--s-3);
+}
+.step strong {
+  color: var(--ink);
+  font-weight: 500;
 }
 @media (max-width: 960px) {
   .scrolly {
@@ -967,16 +1036,105 @@ code {
   }
   .scrolly__stage {
     grid-row: 1;
-    top: 56px;
-    height: 52vh;
-    min-height: 300px;
-    z-index: 1;
+    top: var(--header-h);
+    z-index: 3;
+    height: 46svh;
+    min-height: 280px;
+    margin-inline: calc(-1 * var(--gutter));
     background: var(--ground);
+  }
+  .scrolly__stage::after {
+    /* steps fade as they slide under the stage */
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: var(--s-6);
+    background: linear-gradient(var(--ground), transparent);
+    pointer-events: none;
   }
   .scrolly__steps {
     grid-row: 2;
-    padding: var(--s-6) 0 30vh;
-    gap: 30vh;
+    padding: var(--s-7) 0 45svh;
+    gap: 34svh;
+  }
+}
+
+/* ───────── Stage corners: key, count, readouts ─────────
+   One quiet language in every chapter's stage: a lit key bottom-left (colour
+   plus label, never colour alone) and a mono count bottom-right. */
+.stage-foot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--s-2) var(--s-5);
+  padding: 0 var(--s-3) var(--s-3);
+  pointer-events: none;
+}
+.stage-head {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--s-2) var(--s-5);
+  padding: var(--s-3) var(--s-3) 0;
+  pointer-events: none;
+}
+.stage-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-label);
+  color: var(--ink-2);
+  text-shadow: var(--halo);
+}
+.stage-key--col {
+  flex-direction: column;
+  gap: 2px;
+}
+.stage-key li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.stage-key b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.stage-key svg {
+  flex: none;
+}
+.stage-count {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  text-shadow: var(--halo);
+}
+.stage-count b {
+  font-weight: 400;
+  color: var(--ink);
+}
+@media (max-width: 560px) {
+  .stage-foot,
+  .stage-head {
+    padding-inline: var(--s-4);
   }
 }
 

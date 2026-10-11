@@ -14,22 +14,34 @@ export interface HoistPosition {
   action: string
 }
 
-/** The verdict hoist: one flag per finding, strung on a vertical halyard in
-    the band's right column (stacked under the lede on narrow screens). Each
+/** The verdict hoist: one flag per finding, strung on a halyard (vertical, or
+    in the compact opener form a hairline above each position). Each
     position hangs its verdict flag from the line, names the entity, states
     verdict and confidence in a sentence, and gives the one-line reason. The
     name opens the evidence; the whole position is the hit area. */
-export function HeroHoist({ label, items, onSelect }: { label: string; items: HoistPosition[]; onSelect: (key: string) => void }) {
+export function HeroHoist({
+  label,
+  items,
+  onSelect,
+  compact = false,
+}: {
+  label: string
+  items: HoistPosition[]
+  onSelect: (key: string) => void
+  /** Chapter openers: positions in two columns, each flag hanging from a
+      hairline halyard, 36px flags and smaller names. */
+  compact?: boolean
+}) {
   return (
-    <div className="hoist">
-      <span className="hoist__rope" aria-hidden />
+    <div className={compact ? 'hoist hoist--compact' : 'hoist'}>
+      {!compact && <span className="hoist__rope" aria-hidden />}
       <ol className="hoist__list" aria-label={label}>
         {items.map((it, i) => {
           const n = CONFIDENCE_LEVEL[it.confidence]
           return (
             <li key={it.key} className="hoist__pos" style={{ ['--i' as string]: i }}>
               <span className="hoist__flag" aria-hidden>
-                <Flag code={VERDICT_FLAG[it.verdict]} size={48} decorative />
+                <Flag code={VERDICT_FLAG[it.verdict]} size={compact ? 36 : 48} decorative />
               </span>
               <div className="hoist__body">
                 <h2 className="hoist__name">
@@ -42,7 +54,7 @@ export function HeroHoist({ label, items, onSelect }: { label: string; items: Ho
                   <span>{it.verdict},</span>
                   <span className="hoist__pennants" aria-hidden>
                     {(['P1', 'P2', 'P3'] as const).map((p, j) => (
-                      <Flag key={p} code={p} size={14} decorative muted={j >= n} />
+                      <Flag key={p} code={p} size={compact ? 11 : 14} decorative muted={j >= n} />
                     ))}
                   </span>
                   <span>{it.confidence.toLowerCase()} confidence</span>

@@ -1,9 +1,6 @@
 /* MC3 page. Only tokens from tokens.css; motion is transform/opacity with
    ease-out tokens, and every hover is gated behind a fine pointer. */
 
-.mc3 .band__title {
-  max-width: 22ch;
-}
 
 /* ───────── Canvas scatter ───────── */
 .cplot {
@@ -470,22 +467,6 @@
   position: absolute;
   inset: 0;
 }
-.mc3-story {
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 0 var(--gutter);
-}
-/* Desktop: the stage spans the whole row and the steps pass over its left. */
-@media (min-width: 961px) {
-  .mc3-story .scrolly__stage {
-    grid-column: 1 / -1;
-    grid-row: 1;
-  }
-  .mc3-story .scrolly__steps {
-    grid-column: 1;
-    grid-row: 1;
-  }
-}
 .mc3-stage {
   position: relative;
   width: 100%;
@@ -502,26 +483,21 @@
   opacity: 1;
   pointer-events: auto;
 }
-.mc3-stage__key {
-  position: absolute;
-  top: var(--s-2);
-  right: var(--s-2);
-  display: flex;
-  flex-wrap: wrap;
+.mc3-verdicts {
   justify-content: flex-end;
-  gap: var(--s-2) var(--s-5);
-  pointer-events: none;
 }
-.mc3-stage__key .verdict__label {
+.mc3-verdicts .verdict__label {
   color: var(--ink);
 }
+/* the random control: a lit strip in the stage's top-right corner */
 .mc3-strip {
   position: absolute;
-  right: var(--s-4);
-  bottom: var(--s-4);
-  width: min(460px, calc(100% - 2 * var(--s-4)));
+  z-index: 1;
+  right: var(--s-3);
+  top: var(--s-3);
+  width: min(460px, calc(100% - 2 * var(--s-3)));
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateY(-8px);
   transition: opacity var(--t-base) var(--ease-out), transform var(--t-base) var(--ease-out);
   pointer-events: none;
 }
@@ -553,78 +529,12 @@
   vertical-align: 0.05em;
   margin-right: 2px;
 }
-.mc3-swatch--teal { background: var(--lit-1); box-shadow: 0 0 8px var(--series-1); }
-.mc3-swatch--moon { background: var(--series-5); box-shadow: 0 0 8px var(--series-5); }
-.mc3-swatch--amber { background: var(--lit-2); box-shadow: 0 0 8px var(--series-2); }
-.mc3-swatch--rose { background: var(--lit-3); box-shadow: 0 0 8px var(--series-3); }
+.mc3-swatch--teal { background: var(--lit-1); }
+.mc3-swatch--moon { background: var(--series-5); }
+.mc3-swatch--amber { background: var(--lit-2); }
+.mc3-swatch--rose { background: var(--lit-3); }
 .mc3-step__acts {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-2);
-}
-@media (pointer: coarse) {
-  .mc3-step__acts .chip {
-    min-height: var(--hit);
-  }
-}
-@media (max-width: 960px) {
-  .mc3-story {
-    padding: 0 var(--s-4);
-  }
-  .mc3-strip {
-    right: var(--s-2);
-    bottom: var(--s-2);
-    width: calc(100% - 2 * var(--s-2));
-  }
-}
-@media (max-width: 960px) {
-  .mc3-story .scrolly__stage {
-    height: min(52svh, 460px);
-  }
-}
-/* Phones: the galaxy rises above the title instead of behind it. */
-@media (max-width: 720px) {
-  .mc3 .band {
-    padding-top: min(92vw, 368px);
-  }
-}
-.mc3-stage__key--sky {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  font-size: var(--fs-label);
-  color: var(--ink-2);
-  text-shadow: var(--halo);
-}
-.mc3-stage__key--sky li {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.mc3-stage__key--sky b {
-  color: var(--ink);
-  font-weight: 600;
-}
-.mc3-stage__key--sky .tnum {
-  font-family: var(--font-mono);
-  color: var(--ink-3);
-}
-/* Phones: the header wraps to two rows, so the stage pins below it. */
-@media (max-width: 720px) {
-  .mc3-story .scrolly__stage {
-    top: 96px;
-    height: min(46svh, 400px);
-  }
-}
-/* Phones and tablets: steps slide under the pinned stage, never over it. */
-@media (max-width: 960px) {
-  .mc3-story .scrolly__stage {
-    z-index: 3;
-    /* full-bleed on phones, covering the step cards' edges as they pass under */
-    margin-inline: calc(-1 * var(--s-4));
-    box-shadow: 0 12px 16px -8px var(--ground);
-  }
 }

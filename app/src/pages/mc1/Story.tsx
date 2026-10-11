@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { GlowStage, type GlowState } from '../../charts/GlowStage'
 import { Scrolly } from '../../components/Scrolly'
+import { StageKey, type StageKeyItem } from '../../components/Story'
 import { useTooltip } from '../../components/Tooltip'
 import { label, SHORT, SUSPECT_ORDER, type MC1 } from './data'
 import { CLASS_NAME, HEX, VERDICT_HEX, buildBeats, type Sky, type SuspectLamp } from './sky'
@@ -9,17 +10,6 @@ import { CLASS_NAME, HEX, VERDICT_HEX, buildBeats, type Sky, type SuspectLamp } 
    sticky stage. Each step relights it; claims inside a step light a variant. */
 
 const canHover = () => typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches
-
-function useMedia(q: string) {
-  const [m, setM] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches)
-  useEffect(() => {
-    const mq = window.matchMedia(q)
-    const on = () => setM(mq.matches)
-    mq.addEventListener('change', on)
-    return () => mq.removeEventListener('change', on)
-  }, [q])
-  return m
-}
 
 export function useBeats(sky: Sky, d: MC1) {
   return useMemo(() => {
@@ -115,31 +105,6 @@ function SC({ id, children }: { id: string; children: ReactNode }) {
   )
 }
 
-/** Small lit key in the stage corner: colour + label, never colour alone. */
-function Key({ items }: { items: { color: string; label: string; ring?: boolean; line?: boolean }[] }) {
-  return (
-    <ul className="sky-key" aria-hidden>
-      {items.map((it) => (
-        <li key={it.label}>
-          <svg width={14} height={14} viewBox="-7 -7 14 14">
-            {it.line ? (
-              <line x1={-6} x2={6} stroke={it.color} strokeWidth={2} />
-            ) : it.ring ? (
-              <>
-                <circle r={2.5} fill={it.color} />
-                <circle r={5.5} fill="none" stroke={it.color} strokeWidth={1.5} />
-              </>
-            ) : (
-              <circle r={3.5} fill={it.color} />
-            )}
-          </svg>
-          {it.label}
-        </li>
-      ))}
-    </ul>
-  )
-}
-
 const KEY_BASE = [
   { color: HEX.teal, label: 'Organizations' },
   { color: HEX.blue, label: 'People' },
@@ -150,8 +115,6 @@ const KEY_LAYER = { color: HEX.roseLit, label: 'Weak layer (weight < 0.8)' }
 export function MC1Story({ sky, d, onSuspect }: { sky: Sky; d: MC1; onSuspect: (k: string) => void }) {
   const { lamps, beats } = useBeats(sky, d)
   const [step, setStep] = useState(0)
-  // On phones the stage pins over the top half, so a step activates lower down.
-  const narrow = useMedia('(max-width: 960px)')
   const [claim, setClaim] = useState<string | null>(null)
   const press = (id: string) => setClaim((c) => (c === id ? null : id))
   const lc = d.lowconf
@@ -162,7 +125,7 @@ export function MC1Story({ sky, d, onSuspect }: { sky: Sky; d: MC1; onSuspect: (
     { color: VERDICT_HEX.Possible.ring, label: 'Possible', ring: true },
   ]
 
-  const STEPS: { id: string; beat: string; title: string; body: ReactNode; key: Parameters<typeof Key>[0]['items']; count: string }[] = [
+  const STEPS: { id: string; beat: string; title: string; body: ReactNode; key: StageKeyItem[]; count: string }[] = [
     {
       id: 'sky',
       beat: 'sky',
@@ -253,10 +216,9 @@ export function MC1Story({ sky, d, onSuspect }: { sky: Sky; d: MC1; onSuspect: (
 
   return (
     <StoryClaim.Provider value={{ claim, press }}>
-      <div className="mc1-story" id="story">
+      <div className="chapter-story mc1-story" id="story">
         <Scrolly
           label="The weak layer, step by step"
-          rootMargin={narrow ? '-76% 0px -20% 0px' : undefined}
           onStep={(i) => {
             setStep(i)
             setClaim(null)
@@ -271,9 +233,11 @@ export function MC1Story({ sky, d, onSuspect }: { sky: Sky; d: MC1; onSuspect: (
                 onSuspect={onSuspect}
                 ariaLabel={`The MC1 knowledge graph as a night sky. ${cur.title}. ${cur.count}.`}
               />
-              <div className="sky__foot">
-                <Key items={cur.key} />
-                <p className="sky__count">{cur.count}</p>
+              <div className="stage-foot">
+                <StageKey items={cur.key} />
+                <p className="stage-count">
+                  {cur.count.split(/(\d[\d,.]*(?:e-\d+)?)/).map((t, i) => (i % 2 ? <b key={i}>{t}</b> : t))}
+                </p>
               </div>
             </div>
           )}
@@ -286,12 +250,11 @@ export function MC1Story({ sky, d, onSuspect }: { sky: Sky; d: MC1; onSuspect: (
 /** The opener's backdrop: the sky dim, the layer rose, the suspects lit. */
 export function OpenerSky({ sky, d }: { sky: Sky; d: MC1 }) {
   const { beats } = useBeats(sky, d)
-  const narrow = useMedia('(max-width: 720px)')
   return (
     <SkyStage
       sky={sky}
       d={d}
-      state={narrow ? beats['opener-narrow'] : beats.opener}
+      state={beats.opener}
       intro="bloom"
       ariaLabel="The whole knowledge graph drawn as a dim night sky; the 79-entity weak layer glows rose near its centre, with the four suspects lit inside and beside it."
     />

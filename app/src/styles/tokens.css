@@ -109,6 +109,8 @@
   --radius-pill: 999px;       /* segmented controls and chips only */
   --measure: 62ch;
   --rail: 64px;
+  /* height of the sticky site header; SiteHeader keeps it exact at runtime */
+  --header-h: 65px;
   --hit: 44px;
 
   /* Depth: glow belongs to data that represents light, never to chrome */
@@ -128,6 +130,12 @@
   --t-story: 1200ms;
 
   --shadow-lift: var(--shadow-float);
+}
+
+@media (max-width: 860px) {
+  :root {
+    --header-h: 96px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

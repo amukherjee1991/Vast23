@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { HEX, FONT_DISPLAY, FONT_MONO, FONT_UI, glowSprite, haloText, monthLabel, prefersReducedMotion, prng, runLoop, type Loop } from './stage'
+import { StageKey } from '../../components/Story'
+import { HEX, FONT_DISPLAY, FONT_UI, glowSprite, haloText, monthLabel, prefersReducedMotion, prng, runLoop, type Loop } from './stage'
 
 /* Currents: Oceanus's trade as an ocean gyre. Countries ring the hub (bearing
    and radius from currents.json); each of the 80 largest country flows is a
@@ -52,7 +53,7 @@ export function Currents({
   const playRef = useRef(true)
   const [playing, setPlaying] = useState(true)
   const rewarmRef = useRef<() => void>(() => {})
-  const ui = useRef<{ month?: HTMLElement | null; ship?: HTMLElement | null; share?: HTMLElement | null; range?: HTMLInputElement | null; head?: SVGLineElement | null }>({})
+  const ui = useRef<{ month?: HTMLElement | null; ship?: HTMLElement | null; share?: HTMLElement | null; range?: HTMLInputElement | null; head?: SVGLineElement | null; per?: HTMLElement | null }>({})
 
   const hub = useMemo(() => {
     let best = 0
@@ -142,24 +143,15 @@ export function Currents({
       per = variant === 'stage' ? (w < 720 ? PER_LIGHT * 2 : PER_LIGHT) : w < 720 ? PER_LIGHT / 2 : PER_LIGHT
       let cx: number, cy: number, R: number, sx: number
       if (variant === 'hero') {
-        if (w >= 1100) {
-          // upper right, in the clear water above the verdict hoist (see mc2.css)
-          cx = w * 0.7
-          cy = 270
-          R = Math.min(w * 0.13, 185)
-          sx = 1.7
-        } else {
-          // narrow: the band reserves a top region of min(78vw, 380px) for the scene
-          const top = Math.min(w * 0.78, 380) + 24
-          cx = w * 0.5
-          cy = top * 0.56
-          R = top * 0.36
-          sx = Math.min(1.35, (w * 0.46) / R)
-        }
+        // the band gives the gyre a region of its own: centre it and fill it
+        cx = w * 0.52
+        cy = h * 0.47
+        sx = w > h * 1.2 ? 1.35 : 1
+        R = Math.min((w * 0.4) / sx, h * 0.36)
       } else {
         cx = w / 2
-        cy = h * 0.45
-        R = Math.min(w * 0.36, h * 0.38)
+        cy = h * 0.47
+        R = Math.min(w * 0.36, h * 0.36)
         sx = w > h * 1.25 ? 1.3 : 1
       }
       const pos = new Map<number, { x: number; y: number }>()
@@ -195,6 +187,7 @@ export function Currents({
         return { x0: a.x, y0: a.y, cx: ccx, cy: ccy, x1: b.x, y1: b.y, len: d * 1.12, width: 0.6 + 7 * Math.sqrt(f[2] / maxShip), nx, ny, path }
       })
       geo = { cx, cy, nodes, curves, hubR: Math.max(10, R * 0.07) }
+      if (ui.current.per) ui.current.per.textContent = String(per)
       placed = null
       warm()
     }
@@ -284,7 +277,7 @@ export function Currents({
       if (!placed) {
         // greedy: biggest traders first, skip any label that would collide
         placed = []
-        const max = variant === 'hero' ? (w >= 1100 ? 3 : 0) : w < 560 ? 3 : 6
+        const max = w < 560 ? 3 : variant === 'hero' ? 5 : 6
         const boxes: [number, number, number, number][] = [[G.cx - 44, G.cy + G.hubR * 2.4 - 6, G.cx + 44, G.cy + G.hubR * 2.4 + 20]]
         g.font = `500 12px ${FONT_UI}`
         for (const nd of G.nodes) {
@@ -301,9 +294,6 @@ export function Currents({
         }
       }
       for (const l of placed) haloText(g, l.name, l.x, l.y, HEX.ink2, `500 12px ${FONT_UI}`, l.right ? 'left' : 'right')
-      if (variant === 'stage' && w > 520) {
-        haloText(g, `one light ≈ ${per} shipments`, w - 16, 18, HEX.ink3, `400 12px ${FONT_MONO}`, 'right')
-      }
 
       // readout: DOM writes only when the month changes
       if (m !== shown) {
@@ -354,6 +344,19 @@ export function Currents({
   return (
     <div className={`mc2-cur mc2-cur--${variant}`} data-fish={fish}>
       <canvas ref={cvRef} className="mc2-cur__cv" role="img" aria-label={ariaLabel} />
+      {variant === 'stage' && (
+        <div className="stage-head">
+          <StageKey
+            items={[
+              { color: HEX.litTeal, label: 'All goods' },
+              { color: HEX.litAmber, label: 'Fish' },
+            ]}
+          />
+          <p className="stage-count">
+            one light ≈ <b ref={(el) => void (ui.current.per = el)}>{PER_LIGHT}</b> shipments
+          </p>
+        </div>
+      )}
       {variant === 'stage' && (
         <div className="mc2-cur__ui">
           <div className="mc2-cur__read" aria-live="off">

@@ -139,6 +139,30 @@ export function buildSky(raw: RawSky, weakKeys: Set<string>): Sky {
   const big = sizes.indexOf(Math.max(...sizes))
   const inLcc = new Uint8Array(n)
   for (let i = 0; i < n; i++) inLcc[i] = comp[i] === big ? 1 : 0
+  // Rim fragments are small cliques the layout packs onto almost one point, so
+  // their stars summed into white blobs. Spread each one deterministically on
+  // a sunflower spiral round its centre (in index order), and size its stars
+  // as ordinary ones: degree inside a clique says nothing about reach.
+  const members = new Map<number, number[]>()
+  for (let i = 0; i < n; i++) if (comp[i] !== big) (members.get(comp[i]) ?? members.set(comp[i], []).get(comp[i])!).push(i)
+  const STEP = 0.0042
+  const GOLDEN = Math.PI * (3 - Math.sqrt(5))
+  members.forEach((ids) => {
+    if (ids.length < 3) return
+    let cx = 0,
+      cy = 0
+    ids.forEach((i) => ((cx += nodes[i].x), (cy += nodes[i].y)))
+    cx /= ids.length
+    cy /= ids.length
+    const spread = Math.max(...ids.map((i) => Math.hypot(nodes[i].x - cx, nodes[i].y - cy)))
+    if (spread > STEP * Math.sqrt(ids.length)) return
+    ids.forEach((i, k) => {
+      const r = STEP * Math.sqrt(k + 0.5)
+      nodes[i].x = cx + r * Math.cos(k * GOLDEN)
+      nodes[i].y = cy + r * Math.sin(k * GOLDEN)
+      nodes[i].r = Math.min(nodes[i].r, 1.2)
+    })
+  })
   const full = bbox(nodes.map((_, i) => i), nodes, 0.02, 0)
   // crowding: neighbours within a 3×3 block of a 90-cell grid
   const G = 90
@@ -288,9 +312,6 @@ export function buildBeats(sky: Sky, lamps: SuspectLamp[], candLabel: (rank: num
     rings: rings(10),
   })
 
-  // Phones: the sky hangs whole in a window above the title.
-  beats['opener-narrow'] = { ...beats.opener, camera: bbox(nodes.map((_, i) => i), nodes, 0.01, 0) }
-
   // 1 · the whole graph
   beats.sky = mk({
     nodeAlpha: (i) => ba[i],
@@ -416,13 +437,12 @@ export function buildBeats(sky: Sky, lamps: SuspectLamp[], candLabel: (rank: num
   return beats
 }
 
-/** The opener hangs the sky high and central, above the title and the hoist,
-    so the core glows in the open water at the top of the band. */
+/** The opener has a region of its own: the whole sky, trimmed a little at
+    the far rim so the core fills it. */
 function openerCam(full: [number, number, number, number]): [number, number, number, number] {
   const [x0, y0, x1, y1] = full
   const cx = (x0 + x1) / 2
   const cy = (y0 + y1) / 2
-  const h = (y1 - y0) * 1.18
-  const w = h * 1.6
-  return [cx - w / 2, cy - h * 0.29, cx + w / 2, cy + h * 0.71]
+  const k = 0.8
+  return [cx - ((x1 - x0) * k) / 2, cy - ((y1 - y0) * k) / 2, cx + ((x1 - x0) * k) / 2, cy + ((y1 - y0) * k) / 2]
 }

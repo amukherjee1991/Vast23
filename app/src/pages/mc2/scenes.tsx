@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { Flag } from '../../components/Flag'
+import { StageKey } from '../../components/Story'
 import { VERDICT_FLAG } from '../../lib/signals'
 import { BUNDLE_FLAG } from './charts'
 import { nice, type BundleRec, type CompaniesTop, type Pair, type PairVerdict } from './data'
@@ -8,19 +9,30 @@ import { FONT_MONO, FONT_UI, HEX, glowSprite, haloText, monthLabel, prefersReduc
 /* The other scenes of the MC2 scroll story. Each one is a lit view of one
    claim; the stage crossfades between them. */
 
-/* ═════════ Lifespans: shippers stay lit, receivers flicker out ═════════ */
+/* ═════════ Lifespans: shippers burn long, receivers spark ═════════
+   Each light is about 50 companies, drawn as a trail along the 84-month axis
+   from its first month of trade to its last, in two bands: shippers above,
+   receivers below, each trail at its own height in the band like a ship's
+   light in a long exposure: shippers draw long streaks, receivers short
+   sparks. Trail length is the measured span (lifespan histogram);
+   where a trail starts is modelled from the lifecycle counts (persistent and
+   exited traders start in the first month, entrants run to the last month,
+   transients sit in between). A playhead draws the trails month by month. */
 
-/** Companies represented by one light. */
+/** Companies represented by one trail. */
 const PER_CO = 50
-const LIFE_MONTH_S = 0.14
+const LIFE_MONTH_S = 0.12
+const LIFE_HOLD_S = 2.4
 
 type Hist = CompaniesTop['lifespan_histogram']
+type Cycle = Record<string, number>
 
-function spans(hist: Hist, counts: number[], seed: number) {
+function trails(hist: Hist, counts: number[], cycle: Cycle, seed: number) {
   const total = counts.reduce((a, b) => a + b, 0)
   const nLights = Math.max(1, Math.round(total / PER_CO))
   const rnd = prng(seed)
-  const out: { L: number; b: number; x: number; y: number; tw: number }[] = []
+  const w = { early: (cycle.persistent ?? 0) + (cycle.exited ?? 0), entrant: cycle.entrant ?? 0, transient: cycle.transient ?? 0 }
+  const out: { L: number; b: number; row: number }[] = []
   let cum = 0
   let bin = 0
   for (let k = 0; k < nLights; k++) {
@@ -29,26 +41,51 @@ function spans(hist: Hist, counts: number[], seed: number) {
     const lo = hist.bins[bin]
     const hi = hist.bins[bin + 1]
     const frac = (q - cum / total) / (counts[bin] / total || 1)
-    const L = Math.max(1, lo + frac * (hi - lo))
-    out.push({ L, b: rnd() * (84 - L), x: rnd(), y: rnd(), tw: rnd() * 6.28 })
+    const L = Math.min(84, Math.max(1, Math.round(lo + frac * (hi - lo))))
+    let b: number
+    if (L >= 81) b = 0
+    else {
+      // spans that cannot touch both ends: pick a lifecycle by its share
+      const t = rnd() * (w.early + w.entrant + w.transient || 1)
+      b = t < w.early ? 0 : t < w.early + w.entrant ? 84 - L : 1 + Math.floor(rnd() * Math.max(1, 83 - L))
+    }
+    out.push({ L, b, row: 0 })
   }
+  // rows scattered through the band (deterministic), like long-exposure ship lights
+  out.forEach((p) => (p.row = 0.02 + rnd() * 0.96))
   return out
 }
 
-export function LifeScene({ hist, fishOnly, labels, active }: { hist: Hist; fishOnly: boolean; labels: { shipper: [string, string]; receiver: [string, string] }; active: boolean }) {
+export function LifeScene({
+  hist,
+  cycles,
+  fishOnly,
+  labels,
+  active,
+}: {
+  hist: Hist
+  cycles: { shipper: Cycle; receiver: Cycle }
+  fishOnly: boolean
+  labels: { shipper: [string, string]; receiver: [string, string] }
+  active: boolean
+}) {
   const cvRef = useRef<HTMLCanvasElement>(null)
   const loopRef = useRef<Loop | null>(null)
   const lights = useMemo(
     () => ({
-      shipper: spans(hist, fishOnly ? hist.shipper_fish_majority : hist.shipper, 3),
-      receiver: spans(hist, fishOnly ? hist.receiver_fish_majority : hist.receiver, 5),
+      shipper: trails(hist, fishOnly ? hist.shipper_fish_majority : hist.shipper, cycles.shipper, 3),
+      receiver: trails(hist, fishOnly ? hist.receiver_fish_majority : hist.receiver, cycles.receiver, 5),
     }),
-    [hist, fishOnly],
+    [hist, fishOnly, cycles],
   )
   const labelRef = useRef(labels)
   labelRef.current = labels
+  const restart = useRef<() => void>(() => {})
 
-  useEffect(() => loopRef.current?.setActive(active), [active])
+  useEffect(() => {
+    if (active) restart.current()
+    loopRef.current?.setActive(active)
+  }, [active])
 
   useEffect(() => {
     const cv = cvRef.current
@@ -56,31 +93,46 @@ export function LifeScene({ hist, fishOnly, labels, active }: { hist: Hist; fish
     const sBlue = glowSprite(HEX.litBlue, 0.85)
     const sRose = glowSprite(HEX.litRose, 0.85)
     let T = 0
+    restart.current = () => {
+      T = 0
+    }
     const draw = ({ g, w, h, dt, still }: { g: CanvasRenderingContext2D; w: number; h: number; dt: number; still: boolean }) => {
-      if (!still) T = (T + dt / LIFE_MONTH_S) % 90
-      const now = Math.min(T, 84)
+      if (!still) T = (T + dt / LIFE_MONTH_S) % (84 + LIFE_HOLD_S / LIFE_MONTH_S)
+      const now = still ? 84 : Math.min(T, 84)
       const x0 = 16
       const x1 = w - 16
-      const bands: [typeof lights.shipper, number, number, HTMLCanvasElement, [string, string]][] = [
-        [lights.shipper, h * 0.11, h * 0.43, sBlue, labelRef.current.shipper],
-        [lights.receiver, h * 0.53, h * 0.85, sRose, labelRef.current.receiver],
+      const X = (m: number) => x0 + (m / 84) * (x1 - x0)
+      const bands: [typeof lights.shipper, number, number, string, HTMLCanvasElement, [string, string]][] = [
+        [lights.shipper, Math.max(h * 0.14, 68), h * 0.48, HEX.litBlue, sBlue, labelRef.current.shipper],
+        [lights.receiver, h * 0.55, h * 0.87, HEX.litRose, sRose, labelRef.current.receiver],
       ]
-      const size = Math.max(2.4, Math.min(4.2, w / 260))
-      for (const [ls, y0, y1, spr, [name, sub]] of bands) {
+      const head = Math.max(1.8, Math.min(2.8, w / 360))
+      for (const [ls, y0, y1, col, spr, [name, sub]] of bands) {
+        const top = y0 + 20
+        const span = y1 - top
         g.globalCompositeOperation = 'lighter'
+        g.lineCap = 'round'
+        g.strokeStyle = col
+        g.lineWidth = 1
+        // the trails: lit as far as the playhead has reached
+        g.globalAlpha = 0.3
+        g.beginPath()
         for (const p of ls) {
-          let a: number
-          if (still) a = 0.1 + 0.9 * (p.L / 84)
-          else {
-            const t = now - p.b
-            if (t < 0 || t > p.L) continue
-            const ramp = Math.min(0.5, p.L / 3)
-            a = Math.min(1, t / ramp, (p.L - t) / ramp) * (0.85 + 0.15 * Math.sin(T * 2 + p.tw))
-          }
-          const x = x0 + p.x * (x1 - x0)
-          const y = y0 + 22 + p.y * (y1 - y0 - 22)
-          const R = size * 2.6
-          g.globalAlpha = a
+          if (now <= p.b) continue
+          const y = top + p.row * span
+          g.moveTo(X(p.b), y)
+          g.lineTo(X(Math.min(p.b + p.L, now)), y)
+        }
+        g.stroke()
+        // a light at each trail's tip: bright while it trades, a small ember after
+        for (const p of ls) {
+          if (now <= p.b) continue
+          const end = p.b + p.L
+          const alive = !still && now < end
+          const x = X(Math.min(end, now))
+          const y = top + p.row * span
+          const R = head * (alive ? 2.6 : 1.7)
+          g.globalAlpha = alive ? 0.85 : 0.4
           g.drawImage(spr, x - R, y - R, R * 2, R * 2)
         }
         haloText(g, name, x0, y0, HEX.ink, `600 14px ${FONT_UI}`)
@@ -99,24 +151,22 @@ export function LifeScene({ hist, fishOnly, labels, active }: { hist: Hist; fish
       g.lineTo(x1, ya)
       g.stroke()
       for (let y = 0; y <= 7; y++) {
-        const x = x0 + ((y * 12) / 84) * (x1 - x0)
+        const x = X(y * 12)
         g.beginPath()
         g.moveTo(x, ya - 3)
         g.lineTo(x, ya + 3)
         g.stroke()
         if (y < 7 && (w > 480 || y % 2 === 0)) haloText(g, String(2028 + y), x + 4, ya + 12, HEX.ink3, `400 12px ${FONT_UI}`)
       }
-      if (still) {
-        haloText(g, 'Brightness = share of the 84 months the company trades', x1, ya - 12, HEX.ink3, `400 12px ${FONT_UI}`, 'right')
-      } else {
-        const px = x0 + (now / 84) * (x1 - x0)
+      if (!still && now < 84) {
+        const px = X(now)
         g.strokeStyle = HEX.moon
-        g.globalAlpha = 0.8
+        g.globalAlpha = 0.6
         g.beginPath()
-        g.moveTo(px, ya - 8)
+        g.moveTo(px, Math.max(h * 0.14, 68) + 14)
         g.lineTo(px, ya + 2)
         g.stroke()
-        haloText(g, monthLabel(Math.min(83, Math.floor(now))), Math.min(Math.max(px, x0 + 40), x1 - 40), ya - 16, HEX.moon, `400 12px ${FONT_MONO}`, 'center')
+        haloText(g, monthLabel(Math.min(83, Math.floor(now))), Math.min(Math.max(px, x0 + 40), x1 - 40), ya - 12, HEX.moon, `400 12px ${FONT_MONO}`, 'center')
       }
     }
     const loop = runLoop(cv, draw)
@@ -127,12 +177,25 @@ export function LifeScene({ hist, fishOnly, labels, active }: { hist: Hist; fish
   }, [lights])
 
   return (
-    <canvas
-      ref={cvRef}
-      className="mc2-scene__cv"
-      role="img"
-      aria-label={`Each light is about ${PER_CO} companies, lit for as many months as it trades. ${labels.shipper.join(', ')}. ${labels.receiver.join(', ')}.`}
-    />
+    <>
+      <canvas
+        ref={cvRef}
+        className="mc2-scene__cv"
+        role="img"
+        aria-label={`Each trail is about ${PER_CO} companies, drawn from its first month of trade to its last; length is the measured span, start month is modelled from the lifecycle counts. ${labels.shipper.join(', ')}. ${labels.receiver.join(', ')}.`}
+      />
+      <div className="stage-head">
+        <StageKey
+          items={[
+            { color: HEX.litBlue, label: 'Shipper trail', line: true },
+            { color: HEX.litRose, label: 'Receiver trail', line: true },
+          ]}
+        />
+        <p className="stage-count">
+          one trail ≈ <b>{PER_CO}</b> companies
+        </p>
+      </div>
+    </>
   )
 }
 
@@ -424,6 +487,44 @@ export function BundleScene({ bundles, active }: { bundles: BundleRec[]; active:
 
 /* ═════════ Verdicts hold: the flagged pairs survive the new links ═════════ */
 
+/** One glowing lamp per flagged pair, ten to a row, drawn like every other
+    light in the story (additive glow sprites on a canvas). */
+function HoldLamps({ n, color }: { n: number; color: string }) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const cv = ref.current
+    if (!cv) return
+    const COLS = 10
+    const paint = () => {
+      const w = cv.clientWidth
+      if (!w) return
+      const cell = w / COLS
+      const rows = Math.max(1, Math.ceil(n / COLS))
+      const h = rows * cell
+      cv.style.height = `${h}px`
+      const dpr = Math.min(2, window.devicePixelRatio || 1)
+      cv.width = Math.round(w * dpr)
+      cv.height = Math.round(h * dpr)
+      const g = cv.getContext('2d')!
+      g.setTransform(dpr, 0, 0, dpr, 0, 0)
+      g.clearRect(0, 0, w, h)
+      g.globalCompositeOperation = 'lighter'
+      const spr = glowSprite(color, 0.95)
+      const R = cell * 0.62
+      for (let i = 0; i < n; i++) {
+        const x = (i % COLS) * cell + cell / 2
+        const y = Math.floor(i / COLS) * cell + cell / 2
+        g.globalAlpha = 1
+        g.drawImage(spr, x - R, y - R, R * 2, R * 2)
+      }
+    }
+    const ro = new ResizeObserver(paint)
+    ro.observe(cv)
+    return () => ro.disconnect()
+  }, [n, color])
+  return <canvas ref={ref} className="mc2-hold__cv" aria-hidden />
+}
+
 export function VerdictScene({
   columns,
   footnote,
@@ -447,11 +548,7 @@ export function VerdictScene({
                   <Flag code={VERDICT_FLAG[r]} size={14} decorative />
                   {r} <b>{c.counts[r]}</b>
                 </span>
-                <span className="mc2-hold__lamps" aria-hidden>
-                  {Array.from({ length: c.counts[r] }, (_, i) => (
-                    <i key={i} />
-                  ))}
-                </span>
+                <HoldLamps n={c.counts[r]} color={r === 'Suspect' ? HEX.litRose : HEX.litAmber} />
               </div>
             ))}
           </section>

@@ -60,6 +60,10 @@ export interface GlowState {
   /** Optional per-node start delay as a fraction (0..0.9) of the duration, so
       a change can ripple (e.g. outward from the centre). Defaults to 0. */
   nodeDelay?: (i: number) => number
+  /** Easing of this transition: 'inOut' (default) for camera moves and
+      relights, 'out' when the motion should start the moment the step lands
+      (e.g. a morph the reader is waiting for). */
+  ease?: 'inOut' | 'out'
 }
 export interface GlowStageHandle {
   /** Screen position of node i in CSS pixels relative to the canvas, if visible. */
@@ -93,7 +97,7 @@ function withAlpha(hex: string, a: number) {
 }
 
 const reduceMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-const ease = d3.easeCubicInOut
+const EASE = { inOut: d3.easeCubicInOut, out: d3.easeCubicOut } as const
 
 export const GlowStage = forwardRef<
   GlowStageHandle,
@@ -129,6 +133,7 @@ export const GlowStage = forwardRef<
     camTo: [0, 0, 1, 1] as number[],
     t0: 0,
     dur: 1200,
+    ease: EASE.inOut as (t: number) => number,
     raf: 0,
     w: 0,
     h: 0,
@@ -267,6 +272,7 @@ export const GlowStage = forwardRef<
   function tick(now: number) {
     const A = anim.current
     const p = A.dur <= 0 ? 1 : Math.min(1, (now - A.t0) / A.dur)
+    const ease = A.ease
     const k = ease(p)
     A.k = k
     for (let i = 0; i < A.n; i++) {
@@ -343,6 +349,7 @@ export const GlowStage = forwardRef<
     A.camTo = state.camera ? [...state.camera] : [0, 0, 1, 1]
     A.labels = state.labels ?? []
     A.dur = reduceMotion() || fresh ? 0 : state.duration ?? 1200
+    A.ease = EASE[state.ease ?? 'inOut']
     A.t0 = performance.now()
     if (fresh) {
       // first paint: fade in quickly from darkness
@@ -350,6 +357,7 @@ export const GlowStage = forwardRef<
       A.eFrom.fill(0)
       A.dur = reduceMotion() ? 0 : 900
       A.camFrom = [...A.camTo]
+      A.ease = EASE.inOut
       if (intro === 'bloom' && !reduceMotion()) {
         // grow out of the centre of the framed box
         const cx = (A.camTo[0] + A.camTo[2]) / 2

@@ -6,24 +6,45 @@ export interface ScrollyStep {
   body: ReactNode
 }
 
-/** A sticky stage with story steps scrolling past it. The step nearest the
-    middle of the viewport is active; the stage renders for that step. Steps
-    are real content (claims inside them stay buttons), the stage is the
-    evidence. On phones the stage pins above the steps, never under them. */
+/** Where a step becomes active. Desktop: the viewport middle. Phones and
+    tablets (≤960px): the stage pins under the header over roughly the top
+    57% of the viewport, so the line sits just below it, where the reader's
+    eye is. */
+const LINE_WIDE = '-48% 0px -48% 0px'
+const LINE_NARROW = '-68% 0px -31% 0px'
+const NARROW = '(max-width: 960px)'
+
+function useNarrow() {
+  const [m, setM] = useState(() => typeof window !== 'undefined' && window.matchMedia(NARROW).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW)
+    const on = () => setM(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return m
+}
+
+/** A sticky stage with story steps scrolling past it. The step on the
+    activation line is active; the stage renders for that step. Steps are real
+    content (claims inside them stay buttons), the stage is the evidence. On
+    phones the stage pins above the steps, never under them. */
 export function Scrolly({
   steps,
   stage,
   label,
   onStep,
-  rootMargin = '-48% 0px -48% 0px',
+  rootMargin,
 }: {
   steps: ScrollyStep[]
   stage: (active: number) => ReactNode
   label: string
   onStep?: (i: number) => void
-  /** Where the activation line sits (IntersectionObserver rootMargin). Defaults to the viewport middle. */
+  /** Override the activation line (IntersectionObserver rootMargin). */
   rootMargin?: string
 }) {
+  const narrow = useNarrow()
+  const margin = rootMargin ?? (narrow ? LINE_NARROW : LINE_WIDE)
   const [active, setActive] = useState(0)
   const refs = useRef<(HTMLElement | null)[]>([])
   const onStepRef = useRef(onStep)
@@ -39,11 +60,11 @@ export function Scrolly({
           onStepRef.current?.(i)
         }
       },
-      { rootMargin },
+      { rootMargin: margin },
     )
     refs.current.forEach((el) => el && io.observe(el))
     return () => io.disconnect()
-  }, [steps.length, rootMargin])
+  }, [steps.length, margin])
 
   return (
     <section className="scrolly" aria-label={label}>

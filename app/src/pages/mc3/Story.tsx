@@ -1,5 +1,6 @@
 import * as d3 from 'd3'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { StageKey, type StageKeyItem } from '../../components/Story'
 import { GlowStage, type GlowEdge, type GlowLabel, type GlowNode, type GlowState } from '../../charts/GlowStage'
 import { Scrolly, type ScrollyStep } from '../../components/Scrolly'
 import { VerdictTag } from '../../components/Signals'
@@ -289,19 +290,6 @@ function useBox<T extends HTMLElement>() {
 
 const nameOf = (id: string) => id.slice(2)
 
-/** Phones stack the stage above the steps; their activation line sits lower so the active step starts below the stage. */
-function usePhone() {
-  const q = '(max-width: 960px)'
-  const [m, setM] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches)
-  useLayoutEffect(() => {
-    const mq = window.matchMedia(q)
-    const on = () => setM(mq.matches)
-    mq.addEventListener('change', on)
-    return () => mq.removeEventListener('change', on)
-  }, [])
-  return m
-}
-
 /* ───────── Opener: the galaxy behind the chapter title ───────── */
 
 export function GalaxyBackdrop() {
@@ -310,14 +298,8 @@ export function GalaxyBackdrop() {
   const [ref, { w, h }] = useBox<HTMLDivElement>()
   const state = useMemo<GlowState | null>(() => {
     if (!model || !w) return null
-    // wide: the galaxy rises upper right, clear of the title and the hoist's lamps
-    const wide = w >= 1100
-    const phone = w <= 720
-    const region: Box = wide
-      ? [w * 0.42, 0, w * 0.99, h * 0.45]
-      : phone
-        ? [0, 8, w, Math.min(w * 0.9, 360)]
-        : [w * 0.3, 0, w, h * 0.42]
+    // the band gives the galaxy its own region: fill it, centred
+    const region: Box = [8, 8, w - 8, h - 8]
     return {
       nodeAlpha: (i) => (model.rows[i][3] === 0 ? 0.85 : 0.5),
       edgeAlpha: () => 0.2,
@@ -354,7 +336,6 @@ export function MC3Story({ onOpen }: { onOpen: (id: string) => void }) {
   const lo = random.length ? d3.min(random)! : 495
   const hi = random.length ? d3.max(random)! : 1918
   const n = (v: number | undefined, f: number) => fmt.int.format(v ?? f)
-  const phone = usePhone()
 
   const steps: ScrollyStep[] = [
     {
@@ -448,8 +429,8 @@ export function MC3Story({ onOpen }: { onOpen: (id: string) => void }) {
   ]
 
   return (
-    <div className="mc3-story">
-      <Scrolly steps={steps} rootMargin={phone ? '-60% 0px -38% 0px' : undefined} label="The broken galaxy: how the giant business group falls apart" stage={(i) => <StoryStage step={i} lo={lo} hi={hi} />} />
+    <div className="chapter-story mc3-story">
+      <Scrolly steps={steps} label="The broken galaxy: how the giant business group falls apart" stage={(i) => <StoryStage step={i} lo={lo} hi={hi} />} />
     </div>
   )
 }
@@ -469,8 +450,8 @@ function StoryStage({ step, lo, hi }: { step: number; lo: number; hi: number }) 
   const scene = SCENE_OF[step] ?? 'galaxy'
   const tip = useTooltip()
   useEffect(() => tip.hide(), [step, tip])
-  // desktop: the steps run over the left of the stage, so frame data to the right
-  const region: Box = w > 960 ? [Math.min(w * 0.4, 500), 8, w - 8, h - 8] : [0, 0, w, h]
+  // the stage has its own column; keep the corners clear for the key and count
+  const region: Box = [8, 8, w - 8, h - (w > 560 ? 40 : 56)]
 
   return (
     <div ref={ref} className="mc3-stage">
@@ -478,25 +459,61 @@ function StoryStage({ step, lo, hi }: { step: number; lo: number; hi: number }) 
       {w > 0 && evidence && <EvidenceScene model={evidence} w={w} h={h} region={region} on={scene === 'evidence'} />}
       {w > 0 && sky && <SkyScene model={sky} w={w} h={h} region={region} on={scene === 'sky'} />}
       <ControlStrip on={step === 3} giant={galaxy?.meta.after.giant ?? 306} asFound={galaxy?.meta.before.giant ?? 7093} lo={lo} hi={hi} />
-      {scene === 'sky' && sky && (
-        <ul className="mc3-stage__key mc3-stage__key--sky" aria-label="Seafood clusters">
-          {sky.keys.map((k) => (
-            <li key={k.id}>
-              <span className="mc3-dot" style={{ background: k.color }} aria-hidden />
-              <b>{k.id}</b> {k.text} <span className="tnum">{k.size}</span>
-            </li>
-          ))}
-        </ul>
-      )}
       {scene === 'evidence' && evidence && (
-        <div className="mc3-stage__key">
+        <div className="stage-head mc3-verdicts">
           {evidence.groups.map((g) => (
             <VerdictTag key={g.id} verdict={toVerdict(g.verdict)} confidence={toConfidence(g.confidence)} size={26} compact={w < 640} />
           ))}
         </div>
       )}
+      <div className="stage-foot">
+        {scene === 'sky' && sky ? (
+          <StageKey column items={sky.keys.map((k) => ({ color: k.color, label: <><b>{k.id}</b> {k.text}</> }))} />
+        ) : (
+          <StageKey items={KEYS[step] ?? []} />
+        )}
+        <p className="stage-count">{COUNTS(galaxy?.meta, sky?.seafood, lo, hi)[step]}</p>
+      </div>
     </div>
   )
+}
+
+const KEYS: StageKeyItem[][] = [
+  [
+    { color: C.teal, label: 'Companies' },
+    { color: C.moon, label: 'People' },
+  ],
+  [
+    { color: C.amberLit, label: 'Common surname, 2+ companies' },
+    { color: C.teal, label: 'Companies' },
+    { color: C.moon, label: 'People' },
+  ],
+  [
+    { color: C.amberLit, label: 'Removed' },
+    { color: C.tealLit, label: 'Still connected' },
+    { color: C.teal, label: 'Fragments' },
+  ],
+  [
+    { color: C.tealLit, label: 'The surviving core' },
+    { color: C.teal, label: 'Fragments' },
+  ],
+  [
+    { color: C.rose, label: 'BG00177 companies' },
+    { color: C.amber, label: 'BG00148 companies' },
+    { color: C.moon, label: 'People' },
+  ],
+]
+
+function COUNTS(m: GalaxyJson | undefined, seafood: number | undefined, lo: number, hi: number): ReactNode[] {
+  const f = (v: number | undefined, d: number) => fmt.int.format(v ?? d)
+  return [
+    <><b>{f(m?.before.giant, 7093)}</b> nodes in one group</>,
+    <><b>{f(m?.after.removed, 651)}</b> common names lit</>,
+    <><b>{f(m?.after.components, 1083)}</b> pieces · largest <b>{f(m?.after.giant, 306)}</b></>,
+    <><b>{f(m?.after.giant, 306)}</b> vs <b>{fmt.int.format(lo)}–{fmt.int.format(hi)}</b> at random</>,
+    <><b>2</b> groups · under 10 nodes each</>,
+    <><b>{f(seafood, 861)}</b> seafood companies</>,
+  ]
 }
 
 function Layer({ on, children }: { on: boolean; children: ReactNode }) {
@@ -546,7 +563,9 @@ function GalaxyScene({ model, step, w, h, region, on }: { model: GalaxyModel; st
       {
         positions: 'b',
         duration: 1900,
-        nodeDelay: (i) => (gone(i) ? 0 : 0.04 + rim[i] * 0.22),
+        // ease out: the core moves the moment the step lands, the rim follows
+        ease: 'out',
+        nodeDelay: (i) => (gone(i) ? 0 : 0.02 + rim[i] * 0.18),
         nodeAlpha: (i) => (inGiant[i] ? (co(i) ? 0.95 : 0.7) : co(i) ? 0.62 : 0.4),
         nodeScale: (i) => (inGiant[i] ? 1.15 : 1),
         nodeColor: (i) => (gone(i) ? C.amberLit : inGiant[i] ? (co(i) ? C.tealLit : C.moon) : co(i) ? C.teal : C.moon),
@@ -601,7 +620,7 @@ function GalaxyScene({ model, step, w, h, region, on }: { model: GalaxyModel; st
 function EvidenceScene({ model, w, h, region, on }: { model: EvidenceModel; w: number; h: number; region: Box; on: boolean }) {
   const rw = region[2] - region[0]
   const rh = region[3] - region[1]
-  const stacked = rw / Math.max(1, rh) < 1.1
+  const stacked = rw < 700 || rw / Math.max(1, rh) < 1.3
   const state = useMemo<GlowState>(() => {
     // leave room on the right for the labels and on top for the lamps
     const box: Box = stacked ? [0.12, 0.06, 0.88, 0.96] : [0.0, 0.26, 1.0, 0.74]
@@ -673,7 +692,7 @@ function SkyScene({ model, w, h, region, on }: { model: SkyModel; w: number; h: 
       nodeAlpha: (i) => (model.lens[i] ? 0.95 : 0.4),
       nodeScale: (i) => (model.lens[i] ? 1.15 : 1),
       edgeAlpha: () => 0,
-      camera: frame([0, 0, 1, 1], w, h, [region[0], region[1] + 72, region[2], region[3]]),
+      camera: frame([0, 0, 1, 1], w, h, [region[0], region[1], region[2], region[3] - 56]),
     }),
     [model, w, h, region[0], region[1], region[2], region[3]], // eslint-disable-line react-hooks/exhaustive-deps
   )

@@ -1,5 +1,5 @@
 import * as d3 from 'd3'
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
 import { HeroHoist } from '../components/HeroHoist'
 import { ChallengeBand, ChallengePage, Question, type HalyardStop } from '../components/Layout'
 import { Await, Figure } from '../components/Figure'
@@ -101,27 +101,13 @@ const pairName = (p: Pair) => `${nice(p.predecessor)} → ${nice(p.successor)}`
 
 /* ───────── page ───────── */
 
-/** Phones pin the stage on top, so the activation line sits low there. */
-const NARROW = '(max-width: 960px)'
-const LINE_WIDE = '-48% 0px -48% 0px'
-const LINE_NARROW = '-72% 0px -26% 0px'
-function useNarrow() {
-  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia(NARROW).matches)
-  useEffect(() => {
-    const mq = window.matchMedia(NARROW)
-    const on = () => setNarrow(mq.matches)
-    mq.addEventListener('change', on)
-    return () => mq.removeEventListener('change', on)
-  }, [])
-  return narrow
-}
-
 /** Scroll a story step onto the activation line so the stage switches to it. */
 function goStep(id: string) {
   const el = document.getElementById(id)?.closest('.step')
   if (!el) return
-  if (!window.matchMedia(NARROW).matches) return el.scrollIntoView({ block: 'center' })
-  window.scrollBy({ top: el.getBoundingClientRect().top - window.innerHeight * 0.56 })
+  if (!window.matchMedia('(max-width: 960px)').matches) return el.scrollIntoView({ block: 'center' })
+  // phones: the step's top just past the activation line below the pinned stage (Scrolly)
+  window.scrollBy({ top: el.getBoundingClientRect().top - window.innerHeight * 0.66 })
 }
 
 /** A claim whose evidence is a step of the scroll story above. */
@@ -185,7 +171,7 @@ export default function MC2() {
           }
         />
       </div>
-      <section id="currents" className="mc2-story" aria-label="The story in six steps">
+      <section id="currents" className="chapter-story mc2-story" aria-label="The story in six steps">
         {cur.status === 'ready' && state.status === 'ready' ? (
           <Story cur={cur.data} d={state.data} lifeFish={lifeFish} setLifeFish={setLifeFish} onOpenPair={openPair} />
         ) : (
@@ -241,7 +227,6 @@ function Story({
         shipper: ['Shippers', `${fint(nShip)} · median span ${h.shipper_median_span} months`] as [string, string],
         receiver: ['Receivers', `${fint(nRec)} · median span ${h.receiver_median_span} months`] as [string, string],
       }
-  const narrow = useNarrow()
   const pair = d.sus.pairs.find((p) => p.rank === 8)!
   const imp = d.imp
   const v0 = imp.successor_verdicts_before
@@ -357,7 +342,6 @@ function Story({
   return (
     <Scrolly
       label="Currents, lifespans, a handover and the predicted links"
-      rootMargin={narrow ? LINE_NARROW : LINE_WIDE}
       steps={steps}
       stage={(i) => {
         const scene = SCENE_OF[i] ?? 'cur'
@@ -374,7 +358,7 @@ function Story({
               />
             </div>
             <div className="mc2-scene" {...on('life')}>
-              <LifeScene hist={h} fishOnly={lifeFish} labels={lifeLabels} active={scene === 'life'} />
+              <LifeScene hist={h} cycles={lc} fishOnly={lifeFish} labels={lifeLabels} active={scene === 'life'} />
             </div>
             <div className="mc2-scene" {...on('hand')}>
               <HandoverScene pair={pair} active={scene === 'hand'} />
@@ -403,6 +387,7 @@ function Story({
 function PairHoist({ d, onOpen }: { d: Data; onOpen: (rank: number) => void }) {
   return (
     <HeroHoist
+      compact
       label="The strongest successor pairs"
       onSelect={(k) => onOpen(Number(k))}
       items={HOIST.map((h) => {

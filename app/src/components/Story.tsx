@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 
 /* Story chrome shared by every chapter: a reading-progress line on the top
@@ -90,5 +90,40 @@ export function Bridge({ takeaway, lead, next }: { takeaway: string; lead: strin
         )}
       </div>
     </section>
+  )
+}
+
+export interface StageKeyItem {
+  color: string
+  label: ReactNode
+  /** A lamp ring around the dot (verdicts). */
+  ring?: boolean
+  /** A short stroke instead of a dot (lines, loops, trails). */
+  line?: boolean
+}
+
+/** The lit key in a stage corner: colour plus label, never colour alone.
+    Decorative to assistive tech (the canvas carries the full description). */
+export function StageKey({ items, column = false }: { items: StageKeyItem[]; column?: boolean }) {
+  return (
+    <ul className={column ? 'stage-key stage-key--col' : 'stage-key'} aria-hidden>
+      {items.map((it, i) => (
+        <li key={i}>
+          <svg width={14} height={14} viewBox="-7 -7 14 14">
+            {it.line ? (
+              <line x1={-6} x2={6} stroke={it.color} strokeWidth={2} strokeLinecap="round" />
+            ) : it.ring ? (
+              <>
+                <circle r={2.5} fill={it.color} />
+                <circle r={5.5} fill="none" stroke={it.color} strokeWidth={1.5} />
+              </>
+            ) : (
+              <circle r={3.5} fill={it.color} />
+            )}
+          </svg>
+          {it.label}
+        </li>
+      ))}
+    </ul>
   )
 }
